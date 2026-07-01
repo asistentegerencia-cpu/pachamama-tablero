@@ -244,6 +244,7 @@ body::before{
 <div class="wrap">
   <div class="fleshbar"></div>
   <div id="app"></div>
+<section class="panel" id="costosPanel" style="margin-top:16px"></section>
   <div class="foot">MEGAPROYECTO PACHAMAMA · Sala de control de leads · datos en vivo desde Kommo</div>
 </div>
 
@@ -433,7 +434,7 @@ function shell(){
   +     '<div id="semaforoBody"></div>'
   +   '</section>'
   +   '<section class="panel funnel">'
-  +     '<div class="panelhead"><h2>'+IC.arrow+' Embudo · 6 etapas</h2><span class="muted">conversión vs. meta</span></div>'
+  +     '<div class="panelhead"><h2>'+IC.arrow+' Embudo · 7 etapas</h2><span class="muted">conversión vs. meta</span></div>'
   +     '<div id="funnelBody"></div>'
   +   '</section>'
   +   '<section class="panel advisors">'
@@ -674,6 +675,16 @@ paintClock();
 setInterval(function(){ paintClock(); paintSemaforo(); }, 1000);
 fetchLive();
 setInterval(fetchLive, REFRESH_MS);
+</script>
+<script>
+(function(){
+ var el=document.getElementById("costosPanel"); if(!el) return;
+ fetch("costos.json?ts="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(c){
+  var S=function(n){return "S/ "+new Intl.NumberFormat("es-PE",{maximumFractionDigits:0}).format(Math.round(n||0));};
+  function card(l,v,s){return "<div style=\"background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:15px 16px;flex:1;min-width:150px\"><div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em\">"+l+"</div><div class=\"mono\" style=\"font-size:26px;font-weight:600;margin-top:6px;color:var(--magenta-deep)\">"+v+"</div><div style=\"font-size:11.5px;color:var(--muted2);margin-top:3px\">"+s+"</div></div>";}
+  el.innerHTML="<div class=\"panelhead\"><h2>\uD83D\uDCB0 Inversi\u00f3n y costo por lead</h2><span class=\"muted\">se actualiza cada semana \u00b7 "+c.mes+"</span></div><div style=\"display:flex;gap:14px;flex-wrap:wrap\">"+card("Gasto del mes",S(c.gasto_publicidad_soles),"\u2248 $"+c.gasto_publicidad_usd+" USD")+card("Leads del mes",String(c.leads),"del formulario (Meta)")+card("Costo por lead",S(c.cpl_soles),"\u2248 $"+c.cpl_usd+" USD c/u")+"</div><div style=\"font-size:11px;color:var(--muted2);margin-top:12px\">Publicidad \u00b7 cuenta "+(c.cuenta||"PACHAMAMA PALTA")+" \u00b7 actualizado "+c.actualizado+"</div>";
+ }).catch(function(){ el.innerHTML="<div class=\"panelhead\"><h2>\uD83D\uDCB0 Inversi\u00f3n y costo por lead</h2></div><div style=\"color:var(--muted2);font-size:13px;padding:16px 4px\">A\u00fan sin datos de costos \u2014 se cargar\u00e1n con el reporte semanal.</div>"; });
+})();
 </script>
 </body>
 </html>
