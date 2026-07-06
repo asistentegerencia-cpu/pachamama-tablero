@@ -238,13 +238,54 @@ body::before{
 @keyframes rot{to{transform:rotate(360deg);}}
 .spin{animation:rot 1s linear infinite;}
 @media(prefers-reduced-motion:reduce){ .leaddot.rojo,.badge .dot,.fleshbar{animation:none;} }
+
+/* ==== tabs de vista + Historial de Atenciones ==== */
+.tabbar{display:flex;gap:8px;margin:2px 0 16px;flex-wrap:wrap;}
+.tabbtn{font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:var(--panel);border:1px solid var(--line);padding:9px 16px;border-radius:11px;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:.18s;box-shadow:var(--shadow);}
+.tabbtn:hover{color:var(--text);border-color:var(--line2);}
+.tabbtn.is-on{background:linear-gradient(180deg,var(--magenta),var(--magenta-deep));color:#fff;box-shadow:0 3px 12px var(--magenta-glow);border-color:transparent;}
+.hcards{display:grid;grid-template-columns:repeat(6,1fr);gap:13px;margin-bottom:18px;}
+@media(max-width:900px){.hcards{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:540px){.hcards{grid-template-columns:repeat(2,1fr);}}
+.hcard{background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:14px 15px;}
+.hcard .hl{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.hcard .hv{font-size:25px;font-weight:600;margin-top:6px;line-height:1;}
+.hcard .hs{font-size:11px;color:var(--muted2);margin-top:4px;}
+.hcard.verde .hv{color:var(--verde);} .hcard.amarillo .hv{color:var(--amarillo);}
+.hcard.rojo .hv{color:var(--rojo);} .hcard.magenta .hv{color:var(--magenta-deep);}
+.hfilters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px;}
+.hfilters input,.hfilters select{font:inherit;font-size:12.5px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:8px 11px;}
+.hfilters input{min-width:170px;}
+.hcount{font-size:11.5px;color:var(--muted2);margin-left:auto;}
+.htable{width:100%;border-collapse:collapse;font-size:12.5px;min-width:780px;}
+.htable th{text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted2);padding:0 10px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.htable td{padding:11px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.htable tr:last-child td{border-bottom:none;}
+.htable tbody tr:hover{background:var(--panel2);}
+.sdot{display:inline-flex;align-items:center;gap:7px;font-weight:600;}
+.sdot .d{width:9px;height:9px;border-radius:50%;}
+.sdot.verde{color:var(--verde);} .sdot.verde .d{background:var(--verde);}
+.sdot.amarillo{color:var(--amarillo);} .sdot.amarillo .d{background:var(--amarillo);}
+.sdot.rojo{color:var(--rojo);} .sdot.rojo .d{background:var(--rojo);}
+.sdot.gris{color:var(--muted2);} .sdot.gris .d{background:var(--muted2);}
+.rtag{font-family:'IBM Plex Mono',monospace;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:7px;}
+.rtag.si{color:var(--amarillo);background:var(--amarillo-dim);}
+.rtag.no{color:var(--muted2);background:var(--panel2);}
+.hload{text-align:center;color:var(--muted2);font-size:13px;padding:40px 4px;line-height:1.6;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="fleshbar"></div>
-  <div id="app"></div>
+  <div class="tabbar">
+<button class="tabbtn is-on" id="tabDash" onclick="showView('dash')">📊 Tablero</button>
+<button class="tabbtn" id="tabHist" onclick="showView('hist')">🕒 Historial de Atenciones</button>
+</div>
+<div id="viewDashboard">
+<div id="app"></div>
 <section class="panel" id="costosPanel" style="margin-top:16px"></section>
+</div>
+<div id="viewHistorial" style="display:none"></div>
   <div class="foot">MEGAPROYECTO PACHAMAMA · Sala de control de leads · datos en vivo desde Kommo</div>
 </div>
 
@@ -685,6 +726,20 @@ setInterval(fetchLive, REFRESH_MS);
   el.innerHTML="<div class=\"panelhead\"><h2>\uD83D\uDCB0 Inversi\u00f3n y costo por lead</h2><span class=\"muted\">se actualiza cada semana \u00b7 "+c.mes+"</span></div><div style=\"display:flex;gap:14px;flex-wrap:wrap\">"+card("Gasto del mes",S(c.gasto_publicidad_soles),"\u2248 $"+c.gasto_publicidad_usd+" USD")+card("Leads del mes",String(c.leads),"del formulario (Meta)")+card("Costo por lead",S(c.cpl_soles),"\u2248 $"+c.cpl_usd+" USD c/u")+"</div><div style=\"font-size:11px;color:var(--muted2);margin-top:12px\">Publicidad \u00b7 cuenta "+(c.cuenta||"PACHAMAMA PALTA")+" \u00b7 actualizado "+c.actualizado+"</div>";
  }).catch(function(){ el.innerHTML="<div class=\"panelhead\"><h2>\uD83D\uDCB0 Inversi\u00f3n y costo por lead</h2></div><div style=\"color:var(--muted2);font-size:13px;padding:16px 4px\">A\u00fan sin datos de costos \u2014 se cargar\u00e1n con el reporte semanal.</div>"; });
 })();
+</script>
+<script>
+var API_HIST="https://pachamama-backend-v0v0.onrender.com/api/historial";
+var histData=null,histLoaded=false;
+function showView(v){var d=document.getElementById('viewDashboard'),h=document.getElementById('viewHistorial'),td=document.getElementById('tabDash'),th=document.getElementById('tabHist');if(v==='hist'){d.style.display='none';h.style.display='block';td.className='tabbtn';th.className='tabbtn is-on';if(!histLoaded)loadHistorial();}else{d.style.display='block';h.style.display='none';td.className='tabbtn is-on';th.className='tabbtn';}}
+window.showView=showView;
+function hesc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function hdt(iso){if(!iso)return '—';try{return new Date(iso).toLocaleString('es-PE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Lima'});}catch(e){return '—';}}
+function loadHistorial(){var el=document.getElementById('viewHistorial');el.innerHTML='<div class="panel"><div class="hload">Cargando historial desde Kommo… <b>puede tardar hasta 1 minuto</b> si el servidor estaba dormido.</div></div>';var ctrl=new AbortController();var to=setTimeout(function(){ctrl.abort();},70000);fetch(API_HIST,{signal:ctrl.signal}).then(function(r){clearTimeout(to);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(j){histData=j;histLoaded=true;renderHistorial();}).catch(function(e){el.innerHTML='<div class="panel"><div class="hload">No se pudo cargar el historial ('+hesc(e.message||'error')+').<br><button class="tabbtn" style="margin-top:12px" onclick="loadHistorial()">Reintentar</button></div></div>';});}
+window.loadHistorial=loadHistorial;
+function hc(cls,l,v,s){return '<div class="hcard '+cls+'"><div class="hl">'+hesc(l)+'</div><div class="hv mono">'+v+'</div><div class="hs">'+hesc(s)+'</div></div>';}
+function renderHistorial(){var el=document.getElementById('viewHistorial');if(!histData){el.innerHTML='';return;}var c=histData.consolidado||{};var filas=histData.filas||[];var ases={};filas.forEach(function(f){if(f.asesor_final)ases[f.asesor_final]=1;});var cards=hc('magenta','A tiempo (≤'+(c.sla_objetivo_min||10)+' min)',(c.pct_a_tiempo!=null?c.pct_a_tiempo+'%':'—'),(c.verde||0)+' de '+(c.atendidos||0)+' atendidos')+hc('','Tiempo promedio',(c.tiempo_promedio_min!=null?c.tiempo_promedio_min+' min':'—'),'de atención')+hc('amarillo','Entre 10 y 30 min',(c.pct_amarillo!=null?c.pct_amarillo+'%':'—'),(c.amarillo||0)+' leads')+hc('rojo','Más de 30 min',(c.pct_rojo!=null?c.pct_rojo+'%':'—'),(c.rojo||0)+' leads')+hc('','Reasignados',(c.pct_reasignados!=null?c.pct_reasignados+'%':'—'),(c.reasignados||0)+' leads')+hc('','Sin atender',(c.pct_sin_atender!=null?c.pct_sin_atender+'%':'—'),(c.sin_atender||0)+' de '+(c.total_leads||0));var opts='<option value="">Todos los asesores</option>'+Object.keys(ases).sort().map(function(a){return '<option>'+hesc(a)+'</option>';}).join('');el.innerHTML='<section class="panel"><div class="panelhead"><h2>🕒 Historial de Atenciones</h2><span class="muted">'+filas.length+' leads · actualizado '+hdt(histData.actualizado)+'</span></div><div class="hcards">'+cards+'</div><div class="hfilters"><input id="hSearch" placeholder="Buscar lead…" oninput="renderHTable()"><select id="hSem" onchange="renderHTable()"><option value="">Todos los semáforos</option><option value="verde">🟢 A tiempo</option><option value="amarillo">🟡 10-30 min</option><option value="rojo">🔴 +30 min</option><option value="gris">⚪ Sin atender</option></select><select id="hAses" onchange="renderHTable()">'+opts+'</select><span class="hcount" id="hCount"></span></div><div class="tablewrap"><table class="htable"><thead><tr><th>Lead</th><th>Entró</th><th>Atendió</th><th>Tiempo</th><th>Semáforo</th><th>Reasignado</th><th>Asesor final</th><th>Etapa</th></tr></thead><tbody id="hBody"></tbody></table></div></section>';renderHTable();}
+function renderHTable(){if(!histData)return;var q=((document.getElementById('hSearch')||{}).value||'').toLowerCase();var sem=(document.getElementById('hSem')||{}).value||'';var ase=(document.getElementById('hAses')||{}).value||'';var filas=(histData.filas||[]).filter(function(f){var s=f.semaforo||'gris';if(sem&&s!==sem)return false;if(ase&&f.asesor_final!==ase)return false;if(q&&String(f.nombre||'').toLowerCase().indexOf(q)<0)return false;return true;});var lbl={verde:'A tiempo',amarillo:'10-30 min',rojo:'+30 min',gris:'Sin atender'};var rows=filas.map(function(f){var s=f.semaforo||'gris';return '<tr><td>'+hesc(f.nombre)+'</td><td class="mono">'+hdt(f.entrada)+'</td><td class="mono">'+hdt(f.atendido)+'</td><td class="mono">'+(f.tiempo_min!=null?f.tiempo_min+' min':'—')+'</td><td><span class="sdot '+s+'"><span class="d"></span>'+lbl[s]+'</span></td><td>'+(f.reasignado?'<span class="rtag si">'+f.reasignaciones+'×</span>':'<span class="rtag no">No</span>')+'</td><td>'+hesc(f.asesor_final)+'</td><td>'+hesc(f.etapa_actual)+'</td></tr>';}).join('');document.getElementById('hBody').innerHTML=rows||'<tr><td colspan="8" class="hload">Sin resultados con esos filtros.</td></tr>';var cc=document.getElementById('hCount');if(cc)cc.textContent=filas.length+' de '+(histData.filas||[]).length+' leads';}
+window.renderHTable=renderHTable;
 </script>
 </body>
 </html>
