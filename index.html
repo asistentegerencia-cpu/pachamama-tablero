@@ -419,7 +419,8 @@ function normalize(raw){
         asesor: c.asesor || "—",
         entrada: c.entrada || c.created_at || new Date().toISOString(),
         reasignaciones: c.reasignaciones != null ? c.reasignaciones : 0
-      }; })
+      }; }),
+      leadsPorDia: (raw.leads_por_dia||[]).map(function(d){ return { fecha:d.fecha, total:d.total, palta:d.palta, paltaAcum:(d.palta_acumulado!=null?d.palta_acumulado:0) }; })
     };
   }catch(e){ return buildSample(); }
 }
@@ -482,6 +483,7 @@ function shell(){
   +     '<div class="panelhead"><h2>'+IC.phone+' Desempeño por asesor</h2><span class="muted">conversión a cierre</span></div>'
   +     '<div id="advisorsBody"></div>'
   +   '</section>'
+  +   '<section class="panel" id="leadsDiaPanel" style="grid-column:1 / -1;"></section>'
   + '</main>';
 }
 
@@ -707,7 +709,33 @@ function paintClock(){
   el.textContent = String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")+":"+String(d.getSeconds()).padStart(2,"0");
 }
 
-function paintAll(){ paintHeader(); paintBanner(); paintResumen(); paintKpis(); paintSemaforo(); paintFunnel(); paintAdvisors(); }
+function paintLeadsDia(){
+  var el=document.getElementById("leadsDiaPanel"); if(!el) return;
+  var dias=(state.data.leadsPorDia)||[];
+  if(!dias.length){ el.style.display="none"; return; }
+  el.style.display="";
+  var maxTotal=Math.max.apply(null,dias.map(function(d){return d.total;}).concat([1]));
+  var totalEntrantes=dias.reduce(function(a,d){return a+(d.total||0);},0);
+  var paltaAcum=dias.length?dias[dias.length-1].paltaAcum:0;
+  var rows=dias.slice().reverse().map(function(d){
+    var w=clampPct((d.total/maxTotal)*100);
+    return '<tr>'
+      +'<td class="mono" style="white-space:nowrap">'+esc(d.fecha.slice(5))+'</td>'
+      +'<td><div class="fbar" style="height:18px">'
+        +'<span class="fbarfill" style="width:'+w+'%"></span>'
+        +'<span class="fcount mono">'+d.total+'</span></div></td>'
+      +'<td class="mono" style="text-align:right;color:var(--lime)">'+d.palta+'</td>'
+      +'<td class="mono" style="text-align:right">'+d.paltaAcum+'</td>'
+      +'</tr>';
+  }).join("");
+  el.innerHTML=''
+    +'<div class="panelhead"><h2>'+IC.users+' Leads entrantes · 30 días</h2>'
+    +'<span class="muted">total 30d: <b class="mono" style="color:var(--text)">'+totalEntrantes+'</b> · Palta acum.: <b class="mono" style="color:var(--lime)">'+paltaAcum+'</b></span></div>'
+    +'<div class="tablewrap"><table class="table" style="min-width:360px"><thead><tr>'
+    +'<th>Día</th><th>Entrantes</th><th style="text-align:right">Palta</th><th style="text-align:right">Palta acum.</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function paintAll(){ paintHeader(); paintBanner(); paintResumen(); paintKpis(); paintSemaforo(); paintFunnel(); paintAdvisors(); paintLeadsDia(); }
 
 /* ===================== init ===================== */
 document.getElementById("app").innerHTML = shell();
