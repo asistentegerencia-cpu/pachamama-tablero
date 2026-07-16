@@ -653,6 +653,7 @@ function tile(estado,label,det,n){
     + '<div class="tilelabel">'+label+'</div><div class="tiledet">'+det+'</div></div>';
 }
 
+function slaSubline(i,d){if(i!==1||!d||!d.sla10) return '';var p=d.sla10.pct;var t=(p==null)?'muted':toneConv(p,SLA_CONTACTO_META);var col=t==='ok'?'var(--verde)':t==='warn'?'var(--amarillo)':t==='bad'?'var(--rojo)':'var(--muted2)';var val=(p==null)?'--':(Math.round(p*100)+'%');return '<div style="margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'+'<span style="text-transform:uppercase;letter-spacing:.05em;font-size:9.5px;color:var(--muted)">Contactados en &lt;10 min</span>'+'<b class="mono" style="font-size:14px;color:'+col+'">'+val+'</b>'+'<span style="color:var(--muted2);font-size:10.5px">meta 75% &middot; '+d.sla10.num+'/'+d.sla10.den+' leads</span>'+'</div>';}
 function paintFunnel(){
   var el=document.getElementById("funnelBody"); if(!el) return;
   var _emb=embudoDesdeFilas(filasActuales());var etapas=_emb.etapas;var _datos=_emb.datos;
@@ -664,7 +665,7 @@ function paintFunnel(){
     var conv=prev?e.count/prev:null;
     var key=tkeys[i];
     var target=key?TARGETS[key]:null;
-    var tone=toneConv(conv,target);
+    var tone=toneConv(conv,target);var sla10html=slaSubline(i,_datos);
     var conseq = (key && CONSECUENCIAS[key])
       ? '<div class="fconseq '+(tone==="warn"||tone==="bad"?tone:"")+'">'+CONSECUENCIAS[key]+'</div>'
       : '';
@@ -672,7 +673,7 @@ function paintFunnel(){
       + '<div class="flabel"><span class="fnum">'+(i+1)+'</span>'+esc(e.nombre)+'</div>'
       + '<div class="fbar"><span class="fbarfill" style="width:'+clampPct((e.count/max)*100)+'%"></span>'
       + '<span class="fcount mono">'+e.count+'</span></div>'
-      + conseq + '</div>';
+      + sla10html + conseq + '</div>';
     if(conv!=null){
       html += '<div class="conv '+tone+'">'+pct(conv)+(target!=null?'<span class="convtarget"> / '+Math.round(target*100)+'%</span>':'')+'</div>';
     }
@@ -750,7 +751,7 @@ function tabFilasFecha(){if(!tabRango)return null;var filas=(window.histData&&wi
 var EMB_NOMBRES=["Leads Entrantes","Contactado","Agenda","Meet","Separación"];
 function embIdx(nm){if(nm==="Leads Entrantes"||nm==="Incoming leads")return 0;if(nm==="Contactado")return 1;if(nm==="Agenda")return 2;if(nm==="Meet")return 3;if(nm==="Separación")return 4;if(nm==="Venta concretada")return 5;return -1;}
 function filasActuales(){var base=tabFilasFecha();if(!base)base=(window.histData&&window.histData.filas)?window.histData.filas:[];if(tabAsesor)base=base.filter(function(f){return (f.asesor_final||"")===tabAsesor;});return base;}
-function embudoDesdeFilas(filas){var reach=[0,0,0,0,0],noResp=0,firm=0,perd=0,total=filas.length;filas.forEach(function(x){var nm=x.etapa_actual||"";if(nm==="No responde")noResp++;else if(nm==="Venta concretada")firm++;else if(nm==="143"||nm==="Venta Perdido"||nm==="Perdido")perd++;var k=embIdx(nm);if(k>=1){for(var j=1;j<=Math.min(k,4);j++)reach[j]++;}});reach[0]=total;return {etapas:EMB_NOMBRES.map(function(nm,i){return {nombre:nm,count:reach[i]};}),datos:{noResponde:noResp,contratosFirmados:firm,perdidos:perd,total:total}};}
+function embudoDesdeFilas(filas){var reach=[0,0,0,0,0],noResp=0,firm=0,perd=0,total=filas.length;var verde10=0;filas.forEach(function(x){if(x.semaforo==='verde')verde10++;var nm=x.etapa_actual||"";if(nm==="No responde")noResp++;else if(nm==="Venta concretada")firm++;else if(nm==="143"||nm==="Venta Perdido"||nm==="Perdido")perd++;var k=embIdx(nm);if(k>=1){for(var j=1;j<=Math.min(k,4);j++)reach[j]++;}});reach[0]=total;return {etapas:EMB_NOMBRES.map(function(nm,i){return {nombre:nm,count:reach[i]};}),datos:{noResponde:noResp,contratosFirmados:firm,perdidos:perd,total:total,sla10:{num:verde10,den:total,pct:total?verde10/total:null}}};}
 function funnelDatosHTML(d){function c(l,v,s,col){return '<div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 13px"><div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">'+l+'</div><div class="mono" style="font-size:22px;font-weight:600;margin-top:5px;color:'+col+'">'+v+'</div><div style="font-size:11px;color:var(--muted2);margin-top:2px">'+s+'</div></div>';}var p=function(x){return d.total?(Math.round(x/d.total*1000)/10)+'% de leads':'--';};return '<div style="font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px;padding-top:14px;border-top:1px solid var(--line)">Datos clave &middot; no afectan el embudo</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+c('No responde',d.noResponde,p(d.noResponde),'var(--amarillo)')+c('Contratos firmados',d.contratosFirmados,'venta concretada','var(--verde)')+c('Perdidos',d.perdidos,p(d.perdidos),'var(--rojo)')+'</div>';}
 function tabEtapasView(){return embudoDesdeFilas(filasActuales()).etapas;}
 function tabAsesoresView(){var f=filasActuales();var last=state.data.etapas.length?state.data.etapas[state.data.etapas.length-1].nombre:"";var g={};f.forEach(function(x){var a=x.asesor_final||"—";g[a]=g[a]||{nombre:a,leadsAsignados:0,cierres:0};g[a].leadsAsignados++;if(x.etapa_actual===last)g[a].cierres++;});return Object.keys(g).map(function(k){var o=g[k];var cv=o.leadsAsignados?Math.round((o.cierres/o.leadsAsignados)*1000)/10:0;var s=cv>=20?"verde":cv>=10?"amarillo":"rojo";return {nombre:o.nombre,leadsAsignados:o.leadsAsignados,cierres:o.cierres,conversionPct:cv,semaforo:s};}).sort(function(a,b){return b.leadsAsignados-a.leadsAsignados;});}
