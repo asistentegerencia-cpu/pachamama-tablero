@@ -82,7 +82,7 @@ body::before{
 
 /* grid */
 .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
-.kpis{grid-column:1 / -1; display:grid; grid-template-columns:repeat(5,1fr); gap:16px;}
+.kpis{grid-column:1 / -1; display:grid; grid-template-columns:repeat(4,1fr); gap:16px;}
 .semaforo{grid-column:1 / -1;}
 .funnel{grid-column:1 / 2;}
 .advisors{grid-column:2 / 3;}
@@ -283,7 +283,7 @@ body::before{
 </div>
 <div id="viewDashboard">
 <div id="app"></div>
-<section class="panel" id="costosPanel" style="margin-top:16px"></section>
+
 </div>
 <div id="viewHistorial" style="display:none"></div>
 <div id="viewHoras" style="display:none"></div>
@@ -524,7 +524,7 @@ function kpiCards(m){
     {id:"k-lotes",icon:IC.target,label:"Lotes del mes",value:m.lotesCerrados,fmt:fmtInt,sub:"de "+META_LOTES,ratio:m.lotesCerrados/META_LOTES,goal:"meta",hint:""},
     {id:"k-ing",icon:IC.money,label:"Ingresos del mes",value:m.ingresos,fmt:soles,sub:"de "+soles(META_INGRESOS),ratio:m.ingresos/META_INGRESOS,goal:"meta",hint:""},
     {id:"k-leads",icon:IC.users,label:"Leads hoy",value:m.leadsHoy,fmt:fmtInt,sub:"meta ≈ "+LEADS_DIA+"/día",ratio:m.leadsHoy/LEADS_DIA,goal:"meta",hint:"Para 60 lotes/mes hacen falta ~"+LEADS_NECESARIOS+" leads (~"+LEADS_DIA+"/día)"},
-    {id:"k-cac",icon:IC.money,label:"CAC del mes",value:m.cac,fmt:soles,sub:"tope "+soles(CAC_LIMITE),ratio:m.cac/CAC_LIMITE,goal:"limit",hint:""},
+    
     {id:"k-ciclo",icon:IC.clock,label:"Ciclo Lead→Cliente",value:m.cicloDias,fmt:fmtDias,sub:"ideal ≤ "+CICLO_IDEAL+" d · alerta > "+CICLO_ALERTA+" d",ratio:null,goal:"ciclo",hint:"Lead → Cliente. Ideal ≤2 días. Más de 5 días: revisar cuello de botella."}
   ];
 }
@@ -766,16 +766,7 @@ fetchLive();
 ensureHist(function(){ if(document.getElementById("funnelBody")){ paintFunnel(); paintResumen(); pobTAsesor(); } });
 setInterval(fetchLive, REFRESH_MS);
 </script>
-<script>
-(function(){
- var el=document.getElementById("costosPanel"); if(!el) return;
- fetch("costos.json?ts="+Date.now(),{cache:"no-store"}).then(function(r){return r.json();}).then(function(c){
-  var S=function(n){return "S/ "+new Intl.NumberFormat("es-PE",{maximumFractionDigits:0}).format(Math.round(n||0));};
-  function card(l,v,s){return "<div style=\"background:var(--panel2);border:1px solid var(--line);border-radius:13px;padding:15px 16px;flex:1;min-width:150px\"><div style=\"font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em\">"+l+"</div><div class=\"mono\" style=\"font-size:26px;font-weight:600;margin-top:6px;color:var(--magenta-deep)\">"+v+"</div><div style=\"font-size:11.5px;color:var(--muted2);margin-top:3px\">"+s+"</div></div>";}
-  el.innerHTML="<div class=\"panelhead\"><h2>\uD83D\uDCB0 Inversi\u00f3n y costo por lead</h2><span class=\"muted\">se actualiza cada semana \u00b7 "+c.mes+"</span></div><div style=\"display:flex;gap:14px;flex-wrap:wrap\">"+card("Gasto del mes",S(c.gasto_publicidad_soles),"\u2248 $"+c.gasto_publicidad_usd+" USD")+card("Leads del mes",String(c.leads),"del formulario (Meta)")+card("Costo por lead",S(c.cpl_soles),"\u2248 $"+c.cpl_usd+" USD c/u")+"</div><div style=\"font-size:11px;color:var(--muted2);margin-top:12px\">Publicidad \u00b7 cuenta "+(c.cuenta||"PACHAMAMA PALTA")+" \u00b7 actualizado "+c.actualizado+"</div>";
- }).catch(function(){ el.innerHTML="<div class=\"panelhead\"><h2>\uD83D\uDCB0 Inversi\u00f3n y costo por lead</h2></div><div style=\"color:var(--muted2);font-size:13px;padding:16px 4px\">A\u00fan sin datos de costos \u2014 se cargar\u00e1n con el reporte semanal.</div>"; });
-})();
-</script>
+
 <script>
 var API_HIST="https://pachamama-backend-v0v0.onrender.com/api/historial";
 var histData=null,histLoaded=false;
