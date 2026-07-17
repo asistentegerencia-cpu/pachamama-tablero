@@ -656,6 +656,8 @@ function tile(estado,label,det,n){
 
 function slaSubline(i,d){if(i!==1||!d||!d.sla10) return '';var p=d.sla10.pct;var t=(p==null)?'muted':toneConv(p,SLA_CONTACTO_META);var col=t==='ok'?'var(--verde)':t==='warn'?'var(--amarillo)':t==='bad'?'var(--rojo)':'var(--muted2)';var val=(p==null)?'--':(Math.round(p*100)+'%');return '<div style="margin-top:6px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">'+'<span style="text-transform:uppercase;letter-spacing:.05em;font-size:9.5px;color:var(--muted)">Contactados en &lt;10 min</span>'+'<b class="mono" style="font-size:14px;color:'+col+'">'+val+'</b>'+'<span style="color:var(--muted2);font-size:10.5px">meta 75% &middot; '+d.sla10.num+'/'+d.sla10.den+' leads</span>'+'</div>';}
 function paintFunnel(){
+var NOTAS=['Todos los leads que ingresaron.','Ya están en Contactado o más adelante. El % &lt;10 min es sobre TODOS los atendidos, no solo los que siguen aquí.','Ya tienen cita/agenda programada (o avanzaron más).','Ya se les presentó el proyecto.','Separación / cierre.'];
+
   var el=document.getElementById("funnelBody"); if(!el) return;
   var _emb=embudoDesdeFilas(filasActuales());var etapas=_emb.etapas;var _datos=_emb.datos;
   var max=Math.max.apply(null, etapas.map(function(e){return e.count;}).concat([1]));
@@ -671,7 +673,7 @@ function paintFunnel(){
       ? '<div class="fconseq '+(tone==="warn"||tone==="bad"?tone:"")+'">'+CONSECUENCIAS[key]+'</div>'
       : '';
     html += '<div class="fstage"><div class="fbarrow">'
-      + '<div class="flabel"><span class="fnum">'+(i+1)+'</span>'+esc(e.nombre)+'</div>'
+      + '<div class="flabel"><span class="fnum">'+(i+1)+'</span>'+esc(e.nombre)+'</div>'+(NOTAS[i]?'<div style="font-size:9.5px;color:var(--muted);margin:2px 0 4px;line-height:1.35;font-style:italic">'+NOTAS[i]+'</div>':'')
       + '<div class="fbar"><span class="fbarfill" style="width:'+clampPct((e.count/max)*100)+'%"></span>'
       + '<span class="fcount mono">'+e.count+'</span></div>'
       + sla10html + conseq + '</div>';
