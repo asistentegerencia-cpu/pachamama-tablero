@@ -279,15 +279,15 @@ body::before{
   <div class="fleshbar"></div>
   <div class="tabbar">
 <button class="tabbtn is-on" id="tabDash" onclick="showView('dash')">📊 Tablero</button>
-<button class="tabbtn" id="tabHist" onclick="showView('hist')">🕒 Historial de Atenciones</button><button class="tabbtn" id="tabHoras" onclick="showView('horas')">🕐 Horarios de entrada</button>
+<button class="tabbtn" id="tabHist" onclick="showView('hist')">🕒 Historial de Atenciones</button><button class="tabbtn" id="tabHoras" onclick="showView('horas')">🕐 Horarios de entrada</button><button class="tabbtn" id="tabCitas" onclick="showView('citas')">📅 Citas</button>
 </div>
 <div id="viewDashboard">
 <div id="app"></div>
-<section class="panel" id="citasPanel" style="margin-top:16px"></section>
+<section class="panel" id="citasPanel" style="margin-top:16px"><div class="panelhead"><h2>📅 Citas</h2><button class="tabbtn" style="font-size:11px;padding:5px 11px" onclick="showView('citas')">Ver todas →</button></div><div id="citasMini" class="muted" style="font-size:13px;padding:2px 0"></div></section>
 <section class="panel" id="repartoPanel" style="margin-top:16px"></section>
 </div>
 <div id="viewHistorial" style="display:none"></div>
-<div id="viewHoras" style="display:none"></div>
+<div id="viewHoras" style="display:none"></div><div id="viewCitas" style="display:none"><section class="panel"><div class="panelhead"><h2>📅 Citas · agenda y reuniones</h2><span class="muted" id="citasResumen"></span></div><div style="margin:4px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px">Asesor</span><select id="cAsesor" onchange="paintCitas()" style="font:inherit;font-size:12.5px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px"><option value="">Todos los asesores</option></select></div><div id="citasBody"></div></section></div>
   <div class="foot">MEGAPROYECTO PACHAMAMA · Sala de control de leads · datos en vivo desde Kommo</div>
 </div>
 
@@ -763,31 +763,34 @@ function tabEtapasView(){return embudoDesdeFilas(filasActuales()).etapas;}
 function tabAsesoresView(){var f=filasActuales();var last=state.data.etapas.length?state.data.etapas[state.data.etapas.length-1].nombre:"";var g={};f.forEach(function(x){var a=x.asesor_final||"—";g[a]=g[a]||{nombre:a,leadsAsignados:0,cierres:0};g[a].leadsAsignados++;if(x.etapa_actual===last)g[a].cierres++;});return Object.keys(g).map(function(k){var o=g[k];var cv=o.leadsAsignados?Math.round((o.cierres/o.leadsAsignados)*1000)/10:0;var s=cv>=20?"verde":cv>=10?"amarillo":"rojo";return {nombre:o.nombre,leadsAsignados:o.leadsAsignados,cierres:o.cierres,conversionPct:cv,semaforo:s};}).sort(function(a,b){return b.leadsAsignados-a.leadsAsignados;});}
 function tabLbl(){var el=document.getElementById("tRangoLbl");if(!el)return;if(!tabRango){el.textContent="";return;}var f=tabFilasFecha();el.textContent="Mostrando "+(f?f.length:0)+" leads que entraron · "+tabRango.label;}
 function fmtCita(ts){if(!ts)return '—';try{return new Date(ts*1000).toLocaleString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});}catch(e){return '—';}}
+function estadoCita(f){var e=f.etapa_actual;if(e==='Agenda')return {t:'Programada',c:'amarillo'};if(e==='Meet'||e==='Separación'||e==='Venta concretada')return {t:'Se presentó',c:'verde'};if(e==='No responde')return {t:'No conectó',c:'rojo'};if(e==='Contactado')return {t:'Pospuesta',c:'amarillo'};return {t:'Programada',c:'amarillo'};}
 function paintCitas(){
-  var el=document.getElementById('citasPanel');if(!el)return;
-  var filas=filasActuales().filter(function(f){return f.etapa_actual==='Agenda';});
-  var conCita=filas.filter(function(f){return f.cita_ts;});
-  var sinCita=filas.filter(function(f){return !f.cita_ts;});
-  function rank(f){return f.cita_estado==='proxima'?0:f.cita_estado==='vencida'?1:2;}
-  conCita.sort(function(a,b){var r=rank(a)-rank(b);if(r)return r;return (a.cita_ts||0)-(b.cita_ts||0);});
-  var total=filas.length;var pctReg=total?Math.round(conCita.length/total*100):0;
-  var tone=pctReg>=100?'var(--verde)':pctReg>=70?'var(--amarillo)':'var(--rojo)';
-  var html='<div class="panelhead"><h2>📅 Citas · Agenda</h2><span class="muted">'+conCita.length+' con cita · '+sinCita.length+' sin cita</span></div>';
-  html+='<div style="display:flex;align-items:baseline;gap:8px;margin:2px 0 12px"><span style="text-transform:uppercase;letter-spacing:.05em;font-size:9.5px;color:var(--muted)">Agendados con cita registrada</span><b class="mono" style="font-size:15px;color:'+tone+'">'+pctReg+'%</b><span style="color:var(--muted2);font-size:10.5px">meta 100% · '+conCita.length+'/'+total+'</span></div>';
-  if(!filas.length){html+='<div class="empty">No hay leads en Agenda con el filtro actual.</div>';el.innerHTML=html;return;}
-  if(conCita.length){
-    html+='<div class="tablewrap"><table class="table"><thead><tr><th>Lead</th><th>Asesor</th><th>Fecha y hora</th><th>Tipo</th><th>Estado</th></tr></thead><tbody>';
-    conCita.forEach(function(f){
-      var ec=f.cita_estado==='proxima'?'verde':f.cita_estado==='vencida'?'rojo':'amarillo';
-      var et=f.cita_estado==='proxima'?'Próxima':f.cita_estado==='vencida'?'Vencida':f.cita_estado==='realizada'?'Realizada':'—';
-      html+='<tr><td class="aname">'+esc(f.nombre)+'</td><td>'+esc(f.asesor_final)+'</td><td class="mono">'+fmtCita(f.cita_ts)+'</td><td>'+esc(f.cita_tipo||'—')+'</td><td><span class="status '+ec+'">'+et+'</span></td></tr>';
-    });
-    html+='</tbody></table></div>';
-  }
-  if(sinCita.length){
-    html+='<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--rojo);background:var(--rojo-dim);border-radius:10px;font-size:12px"><b style="color:var(--rojo)">⚠ '+sinCita.length+' en Agenda SIN cita registrada:</b> '+sinCita.map(function(f){return esc(f.nombre)+' <span style="color:var(--muted2)">('+esc(f.asesor_final)+')</span>';}).join(' · ')+'</div>';
-  }
-  el.innerHTML=html;
+  var filas=(window.histData&&window.histData.filas)||[];
+  var sel=document.getElementById('cAsesor');
+  if(sel && sel.options.length<=1){var set={};filas.forEach(function(f){if(f.cita_ts&&f.asesor_final)set[f.asesor_final]=1;});sel.innerHTML='<option value="">Todos los asesores</option>'+Object.keys(set).sort().map(function(a){return '<option>'+esc(a)+'</option>';}).join('');}
+  var fA=sel?sel.value:'';
+  var now=Math.floor(Date.now()/1000);
+  function ord(list){return list.slice().sort(function(a,b){var af=a.cita_ts>=now,bf=b.cita_ts>=now;if(af!==bf)return af?-1:1;return af?a.cita_ts-b.cita_ts:b.cita_ts-a.cita_ts;});}
+  var citasAll=filas.filter(function(f){return f.cita_ts;});
+  var citas=ord(fA?citasAll.filter(function(f){return f.asesor_final===fA;}):citasAll);
+  var agendaSinAll=filas.filter(function(f){return f.etapa_actual==='Agenda'&&!f.cita_ts;});
+  var agendaSin=fA?agendaSinAll.filter(function(f){return f.asesor_final===fA;}):agendaSinAll;
+  var c={p:0,pr:0,po:0,nc:0};
+  citas.forEach(function(f){var t=estadoCita(f).t;if(t==='Se presentó')c.p++;else if(t==='Programada')c.pr++;else if(t==='Pospuesta')c.po++;else if(t==='No conectó')c.nc++;});
+  var body=document.getElementById('citasBody');
+  if(body){var html='';
+   if(!citas.length&&!agendaSin.length){html='<div class="empty">No hay citas registradas con el filtro actual.</div>';}
+   else{
+    if(citas.length){html+='<div class="tablewrap"><table class="table"><thead><tr><th>Lead</th><th>Asesor</th><th>Fecha y hora</th><th>Tipo</th><th>Estado</th></tr></thead><tbody>';
+     citas.forEach(function(f){var e=estadoCita(f);html+='<tr><td class="aname">'+esc(f.nombre)+'</td><td>'+esc(f.asesor_final)+'</td><td class="mono">'+fmtCita(f.cita_ts)+'</td><td>'+esc(f.cita_tipo||'—')+'</td><td><span class="status '+e.c+'">'+e.t+'</span></td></tr>';});
+     html+='</tbody></table></div>';}
+    if(agendaSin.length){html+='<div style="margin-top:12px;padding:10px 12px;border:1px solid var(--rojo);background:var(--rojo-dim);border-radius:10px;font-size:12px"><b style="color:var(--rojo)">⚠ '+agendaSin.length+' en Agenda SIN cita registrada:</b> '+agendaSin.map(function(f){return esc(f.nombre)+' <span style="color:var(--muted2)">('+esc(f.asesor_final)+')</span>';}).join(' · ')+'</div>';}
+   }
+   body.innerHTML=html;}
+  var res=document.getElementById('citasResumen');
+  if(res)res.textContent=citas.length+' citas · '+c.p+' se presentó · '+c.pr+' programadas · '+c.po+' pospuestas · '+c.nc+' no conectó';
+  var mini=document.getElementById('citasMini');
+  if(mini){var prox=citasAll.filter(function(f){return f.cita_ts>=now;}).length;mini.innerHTML='<b class="mono">'+prox+'</b> citas próximas · <b class="mono" style="color:'+(agendaSinAll.length?'var(--rojo)':'inherit')+'">'+agendaSinAll.length+'</b> en Agenda sin cita';}
 }
 function paintAll(){ paintHeader(); paintBanner(); paintResumen(); paintKpis(); paintSemaforo(); paintFunnel(); paintAdvisors(); paintLeadsDia(); paintCitas(); }
 
@@ -804,7 +807,7 @@ setInterval(fetchLive, REFRESH_MS);
 <script>
 var API_HIST="https://pachamama-backend-v0v0.onrender.com/api/historial";
 var histData=null,histLoaded=false;
-function showView(v){var M={dash:"viewDashboard",hist:"viewHistorial",horas:"viewHoras"},T={dash:"tabDash",hist:"tabHist",horas:"tabHoras"};Object.keys(M).forEach(function(k){var e=document.getElementById(M[k]);if(e)e.style.display=(k===v?"block":"none");var t=document.getElementById(T[k]);if(t)t.className="tabbtn"+(k===v?" is-on":"");});if(v==="hist"&&!histLoaded)loadHistorial();if(v==="horas")loadHoras();}
+function showView(v){var M={dash:"viewDashboard",hist:"viewHistorial",horas:"viewHoras",citas:"viewCitas"},T={dash:"tabDash",hist:"tabHist",horas:"tabHoras",citas:"tabCitas"};Object.keys(M).forEach(function(k){var e=document.getElementById(M[k]);if(e)e.style.display=(k===v?"block":"none");var t=document.getElementById(T[k]);if(t)t.className="tabbtn"+(k===v?" is-on":"");});if(v==="hist"&&!histLoaded)loadHistorial();if(v==="horas")loadHoras();if(v==="citas")paintCitas();}
 window.showView=showView;
 function hesc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function hdt(iso){if(!iso)return '—';try{return new Date(iso).toLocaleString('es-PE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Lima'});}catch(e){return '—';}}
