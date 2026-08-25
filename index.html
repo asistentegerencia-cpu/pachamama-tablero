@@ -283,6 +283,7 @@ body::before{
 </div>
 <div id="viewDashboard">
 <div id="app"></div>
+<section class="panel" id="actividadPanel" style="margin-top:16px"></section>
 <section class="panel" id="citasPanel" style="margin-top:16px"><div class="panelhead"><h2>📅 Citas</h2><button class="tabbtn" style="font-size:11px;padding:5px 11px" onclick="showView('citas')">Ver todas →</button></div><div id="citasMini" class="muted" style="font-size:13px;padding:2px 0"></div></section>
 <section class="panel" id="repartoPanel" style="margin-top:16px"></section>
 </div>
@@ -902,6 +903,83 @@ window.paintHoras=paintHoras;
   }
   el.innerHTML='<div class="panelhead"><h2>&#9881;&#65039; Reparto de leads</h2></div><div style="color:var(--muted2);font-size:13px;padding:12px 0">Cargando asesores...</div>';
   fetch(API).then(function(r){return r.json();}).then(render).catch(function(){el.innerHTML='<div class="panelhead"><h2>&#9881;&#65039; Reparto de leads</h2></div><div style="color:var(--muted2);font-size:13px;padding:12px 0">No se pudo cargar. Refresca la pagina.</div>';});
+})();
+</script>
+
+<style>
+/* ==== Actividad por asesor (Kommo) ==== */
+.actbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.actseg{display:inline-flex;background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:3px}
+.actseg button{font:inherit;font-size:11.5px;color:var(--muted);background:transparent;border:none;padding:5px 11px;border-radius:6px;cursor:pointer;transition:.15s}
+.actseg button:hover{color:var(--text)}
+.actseg button.on{background:linear-gradient(180deg,var(--magenta),var(--magenta-deep));color:#fff;font-weight:600;box-shadow:0 2px 8px var(--magenta-glow)}
+.actgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.actcard{border:1px solid var(--line);border-radius:13px;padding:14px 15px;background:var(--panel2);transition:transform .2s,border-color .2s}
+.actcard:hover{transform:translateY(-2px);border-color:var(--line2)}
+.actcard .an{font-size:14px;font-weight:700;margin-bottom:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.actstats{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.actstat{display:flex;flex-direction:column;gap:3px}
+.actnum{font-size:24px;font-weight:700;line-height:1;font-family:'IBM Plex Mono',monospace}
+.actlbl{font-size:10.5px;color:var(--muted);letter-spacing:.02em;line-height:1.25}
+.actnum.c1{color:var(--verde)} .actnum.c2{color:#2563eb} .actnum.c3{color:var(--magenta-deep)} .actnum.c4{color:var(--amarillo)}
+.acttot{display:flex;gap:16px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.acttot b{font-family:'IBM Plex Mono',monospace;color:var(--text)}
+</style>
+<script>
+/* ===================== ACTIVIDAD POR ASESOR (Kommo) =====================
+   Lee /api/actividad (eventos de Kommo) y muestra por asesor: tareas
+   completadas, tareas programadas, leads movidos de etapa y meets.
+   Filtro propio Hoy / 7d / 30d (por defecto Hoy). ======================= */
+(function(){
+  var API="https://pachamama-backend-v0v0.onrender.com/api/actividad";
+  var dias="hoy", cache={};
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function head(){
+    return '<div class="panelhead"><h2>&#128203; Actividad de asesores &middot; Kommo</h2>'
+      +'<div class="actbar"><span class="actseg">'
+      +'<button class="'+(dias==="hoy"?"on":"")+'" onclick="actSet(\'hoy\')">Hoy</button>'
+      +'<button class="'+(dias==="7"?"on":"")+'" onclick="actSet(\'7\')">7 d&iacute;as</button>'
+      +'<button class="'+(dias==="30"?"on":"")+'" onclick="actSet(\'30\')">30 d&iacute;as</button>'
+      +'</span><span class="muted" id="actUpd" style="margin-left:2px"></span></div></div>';
+  }
+  function box(msg){var el=document.getElementById("actividadPanel");if(el)el.innerHTML=head()+'<div style="color:var(--muted2);font-size:13px;padding:16px 2px">'+msg+'</div>';}
+  function render(j){
+    var el=document.getElementById("actividadPanel");if(!el)return;
+    var filas=(j&&j.filas)||[], t=(j&&j.total)||{};
+    var html=head();
+    if(!filas.length){
+      html+='<div style="color:var(--muted2);font-size:13px;padding:16px 2px">Sin actividad registrada en el per&iacute;odo'+((j&&j.nota)?' ('+esc(j.nota)+')':'')+'.</div>';
+    }else{
+      html+='<div class="actgrid">';
+      filas.forEach(function(f){
+        html+='<div class="actcard"><div class="an">'+esc(f.asesor)+'</div><div class="actstats">'
+          +'<div class="actstat"><span class="actnum c1">'+(f.tareas_completadas||0)+'</span><span class="actlbl">Tareas completadas</span></div>'
+          +'<div class="actstat"><span class="actnum c2">'+(f.tareas_programadas||0)+'</span><span class="actlbl">Programadas</span></div>'
+          +'<div class="actstat"><span class="actnum c3">'+(f.leads_movidos||0)+'</span><span class="actlbl">Leads movidos</span></div>'
+          +'<div class="actstat"><span class="actnum c4">'+(f.meets||0)+'</span><span class="actlbl">Meets</span></div>'
+          +'</div></div>';
+      });
+      html+='</div>';
+      html+='<div class="acttot"><span>Equipo: <b>'+(t.tareas_completadas||0)+'</b> tareas hechas</span>'
+        +'<span><b>'+(t.tareas_programadas||0)+'</b> programadas</span>'
+        +'<span><b>'+(t.leads_movidos||0)+'</b> movidos</span>'
+        +'<span><b>'+(t.meets||0)+'</b> meets</span></div>';
+    }
+    el.innerHTML=html;
+    var upd=document.getElementById("actUpd");
+    if(upd&&j&&j.actualizado){try{upd.textContent="· "+new Date(j.actualizado).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
+  }
+  function load(force){
+    if(!force&&cache[dias]){render(cache[dias]);return;}
+    box("Cargando actividad…");
+    fetch(API+"?dias="+dias).then(function(r){return r.json();}).then(function(j){cache[dias]=j;render(j);}).catch(function(){
+      box("No se pudo cargar la actividad. Refresca la p&aacute;gina.");
+    });
+  }
+  window.actSet=function(d){dias=d;load(false);};
+  window.actReload=function(){cache={};load(true);};
+  load(false);
+  setInterval(function(){cache={};load(true);},90000); /* refresco cada 90s */
 })();
 </script>
 </body>
