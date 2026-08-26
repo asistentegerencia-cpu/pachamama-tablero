@@ -342,16 +342,23 @@ var SLA_VERDE_MAX = 10, SLA_ROJO_MIN = 30;
 var META_LOTES = 60, META_INGRESOS = 1500000, CAC_LIMITE = 150000;
 var SLA_CONTACTO_META = 0.75;                 /* 75%+ contactados en <10 min (doc Gerencia) */
 var CICLO_IDEAL = 2, CICLO_ALERTA = 5;        /* Lead→Cliente: ideal ≤2d, alerta >5d */
-var TARGETS = { contacto:0.75, agenda:0.55, presentacion:0.70, cierre:0.28, formalizacion:1.0 };
+/* === PARÁMETRO EDITABLE: objetivo "saludable" de Agenda en el embudo ===
+   La etapa Agenda se pinta verde cuando su conversión llega o supera este %.
+   Cámbialo aquí (ej. 0.90 = 90%). */
+var META_AGENDA = 0.90;
+var TARGETS = { contacto:0.75, agenda:META_AGENDA, presentacion:0.70, cierre:0.28, formalizacion:1.0 };
 /* Consecuencias por incumplimiento (protocolo de Gerencia) */
 var CONSECUENCIAS = {
   contacto:"&lt;75% → Auditoría · &lt;70% → Retiro de leads",
-  agenda:"&lt;55% → Coaching en cierre de cita",
+  agenda:"&lt;"+Math.round(META_AGENDA*100)+"% → Coaching en cierre de cita",
   presentacion:"&lt;70% → Auditoría de asistencia",
   cierre:"&lt;28% → Auditoría · &lt;20% → Retiro",
   formalizacion:"Meta: 100% de depósitos formalizados"
 };
-var LEADS_NECESARIOS = Math.ceil(META_LOTES / TARGETS.cierre / TARGETS.presentacion / TARGETS.agenda / TARGETS.contacto);
+/* El estimado de "leads necesarios/día" usa la conversión de planeación
+   histórica de Agenda (0.55), independiente del objetivo saludable META_AGENDA
+   de arriba, para que ese cálculo no cambie al subir el indicador. */
+var LEADS_NECESARIOS = Math.ceil(META_LOTES / TARGETS.cierre / TARGETS.presentacion / 0.55 / TARGETS.contacto);
 var LEADS_DIA = Math.ceil(LEADS_NECESARIOS / 26);
 var REFRESH_MS = 20000, FETCH_TIMEOUT_MS = 30000;
 
