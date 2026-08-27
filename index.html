@@ -279,7 +279,7 @@ body::before{
   <div class="fleshbar"></div>
   <div class="tabbar">
 <button class="tabbtn is-on" id="tabDash" onclick="showView('dash')">📊 Tablero</button>
-<button class="tabbtn" id="tabHist" onclick="showView('hist')">🕒 Historial de Atenciones</button><button class="tabbtn" id="tabHoras" onclick="showView('horas')">🕐 Horarios de entrada</button><button class="tabbtn" id="tabCitas" onclick="showView('citas')">📅 Citas</button>
+<button class="tabbtn" id="tabHist" onclick="showView('hist')">🕒 Historial de Atenciones</button><button class="tabbtn" id="tabHoras" onclick="showView('horas')">🕐 Horarios de entrada</button><button class="tabbtn" id="tabCitas" onclick="showView('citas')">📅 Citas</button><button class="tabbtn" id="tabReact" onclick="showView('react')">🔄 Reactivación</button>
 </div>
 <div id="viewDashboard">
 <div id="app"></div>
@@ -289,6 +289,7 @@ body::before{
 </div>
 <div id="viewHistorial" style="display:none"></div>
 <div id="viewHoras" style="display:none"></div><div id="viewCitas" style="display:none"><section class="panel"><div class="panelhead"><h2>📅 Citas · agenda y reuniones</h2><span class="muted" id="citasResumen"></span></div><div style="margin:4px 0 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px">Asesor</span><select id="cAsesor" onchange="paintCitas()" style="font:inherit;font-size:12.5px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px"><option value="">Todos los asesores</option></select><span class="muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-left:6px">Estado</span><select id="cEstado" onchange="paintCitas()" style="font:inherit;font-size:12.5px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px"><option value="">Todos</option><option>Programada</option><option>Se presentó</option><option>Pospuesta</option><option>No conectó</option></select><span class="muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:11px;margin-left:6px">Fecha</span><select id="cFecha" onchange="paintCitas()" style="font:inherit;font-size:12.5px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px"><option value="todas">Todas</option><option value="proximas">Próximas</option><option value="prox7">Próximos 7 días</option><option value="ult7">Últimos 7 días</option><option value="ult30">Últimos 30 días</option></select></div><div id="citasBody"></div></section></div>
+<div id="viewReactivacion" style="display:none"></div>
   <div class="foot">MEGAPROYECTO PACHAMAMA · Sala de control de leads · datos en vivo desde Kommo</div>
 </div>
 
@@ -859,7 +860,7 @@ setInterval(fetchLive, REFRESH_MS);
 <script>
 var API_HIST="https://pachamama-backend-v0v0.onrender.com/api/historial";
 var histData=null,histLoaded=false;
-function showView(v){var M={dash:"viewDashboard",hist:"viewHistorial",horas:"viewHoras",citas:"viewCitas"},T={dash:"tabDash",hist:"tabHist",horas:"tabHoras",citas:"tabCitas"};Object.keys(M).forEach(function(k){var e=document.getElementById(M[k]);if(e)e.style.display=(k===v?"block":"none");var t=document.getElementById(T[k]);if(t)t.className="tabbtn"+(k===v?" is-on":"");});if(v==="hist"&&!histLoaded)loadHistorial();if(v==="horas")loadHoras();if(v==="citas")paintCitas();}
+function showView(v){var M={dash:"viewDashboard",hist:"viewHistorial",horas:"viewHoras",citas:"viewCitas",react:"viewReactivacion"},T={dash:"tabDash",hist:"tabHist",horas:"tabHoras",citas:"tabCitas",react:"tabReact"};Object.keys(M).forEach(function(k){var e=document.getElementById(M[k]);if(e)e.style.display=(k===v?"block":"none");var t=document.getElementById(T[k]);if(t)t.className="tabbtn"+(k===v?" is-on":"");});if(v==="hist"&&!histLoaded)loadHistorial();if(v==="horas")loadHoras();if(v==="citas")paintCitas();if(v==="react"&&window.loadReactivacion)loadReactivacion();}
 window.showView=showView;
 function hesc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function hdt(iso){if(!iso)return '—';try{return new Date(iso).toLocaleString('es-PE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'America/Lima'});}catch(e){return '—';}}
@@ -987,6 +988,164 @@ window.paintHoras=paintHoras;
   window.actReload=function(){cache={};load(true);};
   load(false);
   setInterval(function(){cache={};load(true);},90000); /* refresco cada 90s */
+})();
+</script>
+
+<style>
+/* ==== Pestaña Reactivación ==== */
+.rcselect{font:inherit;font-size:12.5px;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+.rcload{text-align:center;color:var(--muted2);font-size:13px;padding:40px 4px;line-height:1.6}
+.rcbars{display:flex;flex-direction:column;gap:8px}
+.rcbarrow{display:flex;align-items:center;gap:11px}
+.rcbarname{flex:none;width:150px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rcbartrack{flex:1;height:22px;background:#eef1f6;border:1px solid var(--line);border-radius:8px;overflow:hidden;position:relative}
+.rcbarfill{position:absolute;left:0;top:0;bottom:0;border-radius:7px 0 0 7px;background:linear-gradient(90deg,var(--magenta),var(--magenta-deep));min-width:2px;transition:width .8s cubic-bezier(.22,1,.36,1)}
+.rcbarval{flex:none;width:44px;text-align:right;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600}
+.rcnote{font-size:11.5px;color:var(--muted);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 13px;line-height:1.5}
+.rcnote b{color:var(--text)}
+</style>
+<script>
+/* ===================== PESTAÑA REACTIVACIÓN =====================
+   Mide las campañas de mensajes masivos (olas) por WhatsApp.
+   Solo lectura: consume /api/mantenimiento/resumen-ola?etiqueta=olaN.
+   El backend carga todo el pipeline, así que puede tardar hasta ~60s
+   si Render estaba dormido; por eso el timeout es de 75s. ============ */
+(function(){
+  var API="https://pachamama-backend-v0v0.onrender.com/api/mantenimiento/resumen-ola";
+  /* ID de usuario Kommo -> nombre corto de la asesora */
+  var NOMBRES={"15459003":"Fátima Abad","15458991":"Brunella Sánchez","15459015":"Jhon Pullo","15459031":"Dorly Obregón","15464339":"Jacqueline Ivonne","15457727":"Asistente Gerencia"};
+  /* Orden de avance de las etapas (para el embudo "hasta dónde llegó"). Las
+     etapas fuera de esta lista (No responde, Reactivación, Venta Perdido) = 0. */
+  var RANK={"Contactado":1,"Agenda":2,"Meet":3,"Separación":4,"Venta concretada":5};
+  var OLAS=["ola1","ola2","ola3","ola4","ola5","ola6","ola7"];
+  var olaSel="ola1";
+  var cache={};
+  var cargado=false;
+
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function pct1(a,b){return b?Math.round((a/b)*1000)/10:0;}
+  function clamp(n){return Math.max(0,Math.min(100,n));}
+  /* De la distribución por etapa ACTUAL de los que respondieron, calcula
+     cuántos alcanzaron AL MENOS cada etapa on-path (reach acumulado). */
+  function reachAcum(dist){
+    var r=[0,0,0,0,0];
+    Object.keys(dist||{}).forEach(function(k){
+      var rk=RANK[k]||0;
+      for(var i=1;i<=rk;i++) r[i-1]+=dist[k];
+    });
+    return r; /* r[0]=Contactado+, r[1]=Agenda+, r[2]=Meet+, r[3]=Separación+, r[4]=Venta */
+  }
+
+  function selectorHtml(){
+    var opts=OLAS.map(function(o){return '<option value="'+o+'"'+(o===olaSel?" selected":"")+'>'+o.replace("ola","Ola ")+'</option>';}).join("");
+    return '<div class="panelhead"><h2>🔄 Reactivación · campañas de WhatsApp</h2>'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<span class="muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Campaña</span>'
+      +'<select class="rcselect" id="rcOla" onchange="reactSetOla(this.value)">'+opts+'</select>'
+      +'<button class="refresh" onclick="reactReload()" title="Recargar">↻</button>'
+      +'<span class="muted" id="rcUpd"></span></div></div>';
+  }
+
+  function kpis(j){
+    function card(cls,label,val,sub){return '<div class="hcard '+cls+'"><div class="hl">'+label+'</div><div class="hv mono">'+val+'</div><div class="hs">'+(sub||"")+'</div></div>';}
+    return '<div class="hcards">'
+      + card("magenta","Enviados",j.enviados,"mensajes de la ola")
+      + card("verde","Contestaron",j.respondieron,pct1(j.respondieron,j.enviados)+"% de respuesta")
+      + card((j.tasa_respuesta_pct>=5?"verde":j.tasa_respuesta_pct>=2?"amarillo":"rojo"),"Tasa de respuesta",j.tasa_respuesta_pct+"%","meta referencial ≥ 5%")
+      + card("rojo","Sin respuesta",j.sin_respuesta_cerrados,"48h sin contestar")
+      + card("amarillo","En ventana 48h",j.todavia_en_ventana_48h,"aún pueden contestar")
+      + '</div>';
+  }
+
+  function embudo(j){
+    var reach=reachAcum(j.donde_estan_los_que_respondieron);
+    var pasos=[
+      {n:"Enviados",v:j.enviados},
+      {n:"Contestaron",v:j.respondieron},
+      {n:"Contactado",v:reach[0]},
+      {n:"Agenda",v:reach[1]},
+      {n:"Meet",v:reach[2]},
+      {n:"Separación",v:reach[3]},
+      {n:"Venta",v:reach[4]}
+    ];
+    var maxV=pasos[0].v||1;
+    var html='<div class="funnelwrap">';
+    pasos.forEach(function(s,i){
+      var w=clamp((s.v/maxV)*100);
+      var conv=i>0?pct1(s.v,pasos[i-1].v):null;
+      html+='<div class="fstage"><div class="fbarrow">'
+        +'<div class="flabel"><span class="fnum">'+(i+1)+'</span>'+esc(s.n)+'</div>'
+        +'<div class="fbar"><span class="fbarfill" style="width:'+w+'%"></span><span class="fcount mono">'+s.v+'</span></div>'
+        +'</div>'
+        +'<div class="conv '+(conv==null?"muted":(conv>=50?"ok":conv>=20?"warn":"bad"))+'">'+(conv==null?"—":conv+'%')+(conv==null?"":'<span class="convtarget"> del anterior</span>')+'</div>'
+        +'</div>';
+    });
+    html+='</div>';
+    return html;
+  }
+
+  function tablaOla(j){
+    var reach=reachAcum(j.donde_estan_los_que_respondieron);
+    return '<div class="tablewrap"><table class="table"><thead><tr>'
+      +'<th>Ola</th><th>Enviados</th><th>Contestaron</th><th>Tasa</th><th>Citas (Agenda+)</th><th>Ventas</th>'
+      +'</tr></thead><tbody>'
+      +'<tr><td class="aname">'+esc(olaSel.replace("ola","Ola "))+'</td>'
+      +'<td class="mono">'+j.enviados+'</td>'
+      +'<td class="mono">'+j.respondieron+'</td>'
+      +'<td class="mono">'+j.tasa_respuesta_pct+'%</td>'
+      +'<td class="mono">'+reach[1]+'</td>'
+      +'<td class="mono">'+reach[4]+'</td></tr>'
+      +'</tbody></table></div>'
+      +'<div class="rcnote" style="margin-top:10px">Por ahora se muestra la ola seleccionada. Cuando lances <b>ola2</b>, <b>ola3</b>… cámbiala en el selector de arriba y su fila aparece aquí.</div>';
+  }
+
+  function porAsesor(j){
+    var m=j.respondieron_por_asesor||{};
+    var filas=Object.keys(m).map(function(id){return {n:NOMBRES[id]||("Usuario "+id),v:m[id]};}).sort(function(a,b){return b.v-a.v;});
+    if(!filas.length) return '<div class="rcload">Nadie ha respondido esta ola todavía.</div>';
+    var max=filas.reduce(function(s,f){return Math.max(s,f.v);},1);
+    return '<div class="rcbars">'+filas.map(function(f){
+      return '<div class="rcbarrow"><span class="rcbarname">'+esc(f.n)+'</span>'
+        +'<span class="rcbartrack"><span class="rcbarfill" style="width:'+clamp((f.v/max)*100)+'%"></span></span>'
+        +'<span class="rcbarval mono">'+f.v+'</span></div>';
+    }).join("")+'</div>';
+  }
+
+  function pintar(j){
+    var el=document.getElementById("viewReactivacion");if(!el)return;
+    el.innerHTML=''
+      +'<section class="panel">'+selectorHtml()+kpis(j)+'</section>'
+      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>📉 Embudo de la campaña</h2><span class="muted">de enviados a venta · % del paso anterior</span></div>'
+        +'<div class="rcnote" style="margin-bottom:12px">Lo importante no es cuántos mensajes salieron, sino <b>hasta dónde llegaron</b>. Cuenta la posición actual de cada lead que respondió; quien respondió y volvió a "No responde" o "Venta Perdido" se cuenta solo hasta <b>Contestaron</b>.</div>'
+        +embudo(j)+'</section>'
+      +'<div class="grid" style="margin-top:16px">'
+        +'<section class="panel" style="grid-column:1 / -1"><div class="panelhead"><h2>📋 Resumen por ola</h2></div>'+tablaOla(j)+'</section>'
+      +'</div>'
+      +'<div class="grid" style="margin-top:16px">'
+        +'<section class="panel funnel"><div class="panelhead"><h2>👩‍💼 Respuestas por asesora</h2></div>'+porAsesor(j)+'</section>'
+        +'<section class="panel advisors"><div class="panelhead"><h2>📅 Envíos por día</h2></div>'
+          +'<div class="rcnote">Este gráfico se activa cuando las próximas olas guarden la <b>fecha de envío</b> (etiqueta <b>env:AAAA-MM-DD</b> al disparar la tanda). Hoy las etiquetas de ola no guardan cuándo salió el mensaje, así que todavía no hay datos por día.</div>'
+        +'</section>'
+      +'</div>';
+    var upd=document.getElementById("rcUpd");
+    if(upd){try{upd.textContent="· "+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
+  }
+
+  function box(msg){var el=document.getElementById("viewReactivacion");if(el)el.innerHTML='<section class="panel">'+selectorHtml()+'<div class="rcload">'+msg+'</div></section>';}
+
+  function cargar(force){
+    if(!force&&cache[olaSel]){pintar(cache[olaSel]);return;}
+    box('Cargando la campaña <b>'+esc(olaSel)+'</b> desde Kommo…<br>Puede tardar hasta 1 minuto si el servidor estaba dormido.');
+    var ctrl=new AbortController();var to=setTimeout(function(){ctrl.abort();},75000);
+    fetch(API+"?etiqueta="+encodeURIComponent(olaSel)+"&nc="+Date.now(),{signal:ctrl.signal})
+      .then(function(r){clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+      .then(function(j){if(j&&j.error)throw new Error(j.error);cache[olaSel]=j;pintar(j);})
+      .catch(function(e){clearTimeout(to);box('No se pudo cargar <b>'+esc(olaSel)+'</b>.<br><span style="color:var(--muted2)">'+esc(e&&e.message?e.message:"error")+'</span><br><button class="refresh" style="margin-top:12px" onclick="reactReload()">Reintentar</button>');});
+  }
+
+  window.loadReactivacion=function(){ cargado=true; cargar(false); };
+  window.reactSetOla=function(o){ olaSel=o; cargar(false); };
+  window.reactReload=function(){ delete cache[olaSel]; cargar(true); };
 })();
 </script>
 </body>
