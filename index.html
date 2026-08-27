@@ -1122,11 +1122,10 @@ window.paintHoras=paintHoras;
         +'<section class="panel" style="grid-column:1 / -1"><div class="panelhead"><h2>📋 Resumen por ola</h2></div>'+tablaOla(j)+'</section>'
       +'</div>'
       +'<div class="grid" style="margin-top:16px">'
-        +'<section class="panel funnel"><div class="panelhead"><h2>👩‍💼 Respuestas por asesora</h2></div>'+porAsesor(j)+'</section>'
-        +'<section class="panel advisors"><div class="panelhead"><h2>📅 Envíos por día</h2></div>'
-          +'<div class="rcnote">Este gráfico se activa cuando las próximas olas guarden la <b>fecha de envío</b> (etiqueta <b>env:AAAA-MM-DD</b> al disparar la tanda). Hoy las etiquetas de ola no guardan cuándo salió el mensaje, así que todavía no hay datos por día.</div>'
-        +'</section>'
-      +'</div>';
+        +'<section class="panel" style="grid-column:1 / -1"><div class="panelhead"><h2>👩‍💼 Respuestas por asesora</h2></div>'+porAsesor(j)+'</section>'
+      +'</div>'
+      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>📅 Envíos por día y hora · tandas</h2><span class="muted" id="rcEnviosUpd"></span></div><div id="rcEnvios"><div class="rcload">Cargando tandas… (puede tardar ~1 min)</div></div></section>';
+    cargarEnvios();
     var upd=document.getElementById("rcUpd");
     if(upd){try{upd.textContent="· "+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
   }
@@ -1143,9 +1142,43 @@ window.paintHoras=paintHoras;
       .catch(function(e){clearTimeout(to);box('No se pudo cargar <b>'+esc(olaSel)+'</b>.<br><span style="color:var(--muted2)">'+esc(e&&e.message?e.message:"error")+'</span><br><button class="refresh" style="margin-top:12px" onclick="reactReload()">Reintentar</button>');});
   }
 
+  /* ---- Envíos por día y hora (tandas), del endpoint /api/envios/timeline ---- */
+  var cacheEnv={};
+  function renderEnvios(j){
+    var el=document.getElementById("rcEnvios");if(!el)return;
+    var dias=(j&&j.por_dia)||[], tandas=(j&&j.tandas)||[];
+    if(!tandas.length){el.innerHTML='<div class="rcnote">Aún no hay envíos registrados para <b>'+esc(olaSel)+'</b> en el período.</div>';return;}
+    var max=dias.reduce(function(s,d){return Math.max(s,d.enviados);},1);
+    var barras=dias.map(function(d){
+      var w=clamp((d.enviados/max)*100);
+      return '<div class="rcbarrow"><span class="rcbarname">'+esc(d.fecha)+'</span>'
+        +'<span class="rcbartrack"><span class="rcbarfill" style="width:'+w+'%"></span></span>'
+        +'<span class="rcbarval mono">'+d.enviados+'</span></div>';
+    }).join("");
+    var filas=tandas.slice().reverse().map(function(t){
+      var tasa=pct1(t.respondieron,t.enviados);
+      var tone=tasa>=5?"ok":tasa>=2?"warn":"bad";
+      return '<tr><td class="mono">'+esc(t.fecha)+'</td><td class="mono">'+esc(t.hora)+'</td><td class="mono">'+t.enviados+'</td><td class="mono">'+t.respondieron+'</td><td class="mono"><span class="pill '+tone+'">'+tasa+'%</span></td></tr>';
+    }).join("");
+    el.innerHTML='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Enviados por día</div>'
+      +'<div class="rcbars">'+barras+'</div>'
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Cada tanda · día y hora (Lima)</div>'
+      +'<div class="tablewrap"><table class="table"><thead><tr><th>Fecha</th><th>Hora</th><th>Enviados</th><th>Respondieron</th><th>Tasa</th></tr></thead><tbody>'+filas+'</tbody></table></div>'
+      +'<div class="rcnote" style="margin-top:10px">La hora es cuando el lead entró a "Reactivación" (= momento del envío). "Respondieron" = cuántos de esa tanda contestaron en total. Sirve para elegir el mejor día y hora.</div>';
+    var u=document.getElementById("rcEnviosUpd");if(u&&j)u.textContent="· "+(j.total_enviados||0)+" envíos · "+(j.total_respondieron||0)+" respuestas";
+  }
+  function cargarEnvios(){
+    if(cacheEnv[olaSel]){renderEnvios(cacheEnv[olaSel]);return;}
+    var ctrl=new AbortController();var to=setTimeout(function(){ctrl.abort();},75000);
+    fetch("https://pachamama-backend-v0v0.onrender.com/api/envios/timeline?etiqueta="+encodeURIComponent(olaSel)+"&dias=60&nc="+Date.now(),{signal:ctrl.signal})
+      .then(function(r){clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+      .then(function(j){if(j&&j.error)throw new Error(j.error);cacheEnv[olaSel]=j;renderEnvios(j);})
+      .catch(function(e){clearTimeout(to);var el=document.getElementById("rcEnvios");if(el)el.innerHTML='<div class="rcnote">No se pudieron cargar las tandas.<br><span style="color:var(--muted2)">'+esc(e&&e.message?e.message:"error")+'</span></div>';});
+  }
+
   window.loadReactivacion=function(){ cargado=true; cargar(false); };
   window.reactSetOla=function(o){ olaSel=o; cargar(false); };
-  window.reactReload=function(){ delete cache[olaSel]; cargar(true); };
+  window.reactReload=function(){ delete cache[olaSel]; delete cacheEnv[olaSel]; cargar(true); };
 })();
 </script>
 </body>
