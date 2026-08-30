@@ -1017,104 +1017,134 @@ window.paintHoras=paintHoras;
 .rcnote b{color:var(--text)}
 </style>
 <script>
-/* ===================== PESTAÑA REACTIVACIÓN =====================
-   Mide las campañas de mensajes masivos (olas) por WhatsApp.
-   Solo lectura: consume /api/mantenimiento/resumen-ola?etiqueta=olaN.
-   El backend carga todo el pipeline, así que puede tardar hasta ~60s
-   si Render estaba dormido; por eso el timeout es de 75s. ============ */
+/* ===================== PESTAÑA REACTIVACIÓN (multi-campaña) =====================
+   Compara TODAS las campañas de mensajes masivos por WhatsApp, cada una
+   identificada por su etiqueta. Solo lectura: consume, una vez por campaña,
+   /api/mantenimiento/ola?etiqueta=<tag>&pipeline=<id>.
+   IMPORTANTE: la respuesta se cuenta por MARCA (respondio_solo / <ola>_respondio
+   / etapa "Respondió" de Evolta), NUNCA por "está en etapa avanzada". Eso lo
+   resuelve el backend (campo `senal`). ============================================ */
 (function(){
-  var API="https://pachamama-backend-v0v0.onrender.com/api/mantenimiento/resumen-ola";
+  var API="https://pachamama-backend-v0v0.onrender.com/api/mantenimiento/ola";
+  var COSTO=0.070; /* USD por mensaje (costo real) */
+  /* Registro de campañas conocidas. Para sumar una: agrega una fila aquí. */
+  var CAMPANAS=[
+    {tag:"ola1",             nombre:"Reactivación · ola 1",     plantilla:"reactivacion_pachamama_ago2026", pipeline:"13969395", embudo:"Ventas", fecha:"25 ago"},
+    {tag:"ola2-tanda1",      nombre:"Evolta · ola 2 tanda 1",   plantilla:"—",                              pipeline:"14368620", embudo:"Evolta", fecha:"28 ago 18:40"},
+    {tag:"ab-reapertura",    nombre:"A/B · REAPERTURA",         plantilla:"NO RESPONDE - REAPERTURA",        pipeline:"14368620", embudo:"Evolta", fecha:"29 ago", ab:"A"},
+    {tag:"ab-productos",     nombre:"A/B · PRODUCTOS (precios)",plantilla:"CONTACTADOS - PRODUCTOS",         pipeline:"14368620", embudo:"Evolta", fecha:"29 ago", ab:"B"},
+    {tag:"activacion-7dias", nombre:"Activación · leads 7 días",plantilla:"—",                              pipeline:"13969395", embudo:"Ventas", fecha:"29 ago 10:31"},
+    {tag:"activacion-agosto",nombre:"Activación · leads agosto",plantilla:"—",                              pipeline:"13969395", embudo:"Ventas", fecha:"29 ago 11:30"}
+  ];
+  function campana(tag){for(var i=0;i<CAMPANAS.length;i++)if(CAMPANAS[i].tag===tag)return CAMPANAS[i];return null;}
   /* ID de usuario Kommo -> nombre corto de la asesora */
-  var NOMBRES={"15459003":"Fátima Abad","15458991":"Brunella Sánchez","15459015":"Jhon Pullo","15459031":"Dorly Obregón","15464339":"Jacqueline Ivonne","15457727":"Asistente Gerencia"};
-  /* Orden de avance de las etapas (para el embudo "hasta dónde llegó"). Las
-     etapas fuera de esta lista (No responde, Reactivación, Venta Perdido) = 0. */
-  var RANK={"Contactado":1,"Agenda":2,"Meet":3,"Separación":4,"Venta concretada":5};
-  var OLAS=["ola1","ola2","ola3","ola4","ola5","ola6","ola7"];
-  var olaSel="ola1";
-  var cache={};
+  var NOMBRES={"15459003":"Fátima Abad","15458991":"Brunella Sánchez","15459015":"Jhon Pullo","15459031":"Alessandra Ames","15464339":"Esteban Reategui","15457727":"Asistente Gerencia (CC)"};
+  var datos={};        /* tag -> {data} | {error} */
+  var drillSel="ola1"; /* campaña en el detalle */
+  var ordenarTasa=false;
   var cargado=false;
 
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
   function pct1(a,b){return b?Math.round((a/b)*1000)/10:0;}
   function clamp(n){return Math.max(0,Math.min(100,n));}
-  /* De la distribución por etapa ACTUAL de los que respondieron, calcula
-     cuántos alcanzaron AL MENOS cada etapa on-path (reach acumulado). */
-  function reachAcum(dist){
-    var r=[0,0,0,0,0];
-    Object.keys(dist||{}).forEach(function(k){
-      var rk=RANK[k]||0;
-      for(var i=1;i<=rk;i++) r[i-1]+=dist[k];
+  function usd(n){return "$"+(n||0).toFixed(2);}
+  function toneTasa(t){return t>=5?"ok":t>=2?"warn":"bad";}
+
+  /* ---------- fetch de una campaña ---------- */
+  function fetchOne(c){
+    var ctrl=new AbortController();var to=setTimeout(function(){ctrl.abort();},75000);
+    return fetch(API+"?etiqueta="+encodeURIComponent(c.tag)+"&pipeline="+encodeURIComponent(c.pipeline)+"&nc="+Date.now(),{signal:ctrl.signal})
+      .then(function(r){clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
+      .then(function(j){if(j&&j.error)throw new Error(j.error);datos[c.tag]={data:j};})
+      .catch(function(e){clearTimeout(to);datos[c.tag]={error:(e&&e.message)?e.message:"error"};});
+  }
+  function cargarTodas(force){
+    CAMPANAS.forEach(function(c){
+      if(!force&&datos[c.tag])return;
+      if(!force&&datos[c.tag]&&datos[c.tag].__loading)return;
+      datos[c.tag]={__loading:true};
+      fetchOne(c).then(function(){renderTabla();renderAB();if(c.tag===drillSel)renderDrillBody();});
     });
-    return r; /* r[0]=Contactado+, r[1]=Agenda+, r[2]=Meet+, r[3]=Separación+, r[4]=Venta */
+    renderTabla();renderAB();renderDrillBody();
   }
 
-  function selectorHtml(){
-    var opts=OLAS.map(function(o){return '<option value="'+o+'"'+(o===olaSel?" selected":"")+'>'+o.replace("ola","Ola ")+'</option>';}).join("");
-    return '<div class="panelhead"><h2>🔄 Reactivación · campañas de WhatsApp</h2>'
-      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
-      +'<span class="muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Campaña</span>'
-      +'<select class="rcselect" id="rcOla" onchange="reactSetOla(this.value)">'+opts+'</select>'
-      +'<button class="refresh" onclick="reactReload()" title="Recargar">↻</button>'
-      +'<span class="muted" id="rcUpd"></span></div></div>';
+  /* ---------- tabla comparativa ---------- */
+  function renderTabla(){
+    var el=document.getElementById("rcTabla");if(!el)return;
+    var lista=CAMPANAS.slice();
+    if(ordenarTasa){lista.sort(function(a,b){var ta=(datos[a.tag]&&datos[a.tag].data)?datos[a.tag].data.tasa_respuesta_pct:-1;var tb=(datos[b.tag]&&datos[b.tag].data)?datos[b.tag].data.tasa_respuesta_pct:-1;return tb-ta;});}
+    var filas=lista.map(function(c){
+      var d=datos[c.tag];
+      var nombre='<div class="aname">'+esc(c.nombre)+'</div><div style="font-size:10.5px;color:var(--muted2)">'+esc(c.plantilla)+'</div>';
+      if(!d||d.__loading) return '<tr><td>'+nombre+'</td><td class="mono">'+esc(c.fecha)+'</td><td>'+esc(c.embudo)+'</td><td colspan="5" class="rcload" style="padding:11px 10px">cargando…</td></tr>';
+      if(d.error) return '<tr><td>'+nombre+'</td><td class="mono">'+esc(c.fecha)+'</td><td>'+esc(c.embudo)+'</td><td colspan="5" style="color:var(--rojo);font-size:11.5px">'+esc(d.error)+'</td></tr>';
+      var j=d.data, t=j.tasa_respuesta_pct;
+      return '<tr>'
+        +'<td>'+nombre+'</td>'
+        +'<td class="mono">'+esc(c.fecha)+'</td>'
+        +'<td>'+esc(c.embudo)+(c.ab?' <span class="rtag si">A/B '+c.ab+'</span>':'')+'</td>'
+        +'<td class="mono">'+j.enviados+'</td>'
+        +'<td class="mono">'+j.respondieron+'</td>'
+        +'<td class="mono"><span class="pill '+toneTasa(t)+'">'+t+'%</span></td>'
+        +'<td class="mono">'+(j.fallidos_marcados||0)+'</td>'
+        +'<td class="mono">'+usd(j.enviados*COSTO)+'</td>'
+        +'</tr>';
+    }).join("");
+    var listos=CAMPANAS.filter(function(c){return datos[c.tag]&&datos[c.tag].data;});
+    var totEnv=listos.reduce(function(s,c){return s+datos[c.tag].data.enviados;},0);
+    var totResp=listos.reduce(function(s,c){return s+datos[c.tag].data.respondieron;},0);
+    el.innerHTML='<div class="tablewrap"><table class="table" style="min-width:720px"><thead><tr>'
+      +'<th>Campaña · plantilla</th><th>Fecha</th><th>Embudo</th><th>Enviados</th><th>Respuestas</th>'
+      +'<th style="cursor:pointer" onclick="reactSort()">Tasa '+(ordenarTasa?"▼":"↕")+'</th><th>Fallidos</th><th>Costo</th>'
+      +'</tr></thead><tbody>'+filas+'</tbody>'
+      +'<tfoot><tr style="border-top:2px solid var(--line)"><td colspan="3" style="font-weight:600">Total ('+listos.length+'/'+CAMPANAS.length+')</td>'
+      +'<td class="mono" style="font-weight:600">'+totEnv+'</td><td class="mono" style="font-weight:600">'+totResp+'</td>'
+      +'<td class="mono">'+pct1(totResp,totEnv)+'%</td><td></td><td class="mono">'+usd(totEnv*COSTO)+'</td></tr></tfoot>'
+      +'</table></div>'
+      +'<div class="rcnote" style="margin-top:12px">⚠️ <b>No compares tasas entre campañas de audiencias distintas.</b> "Activación 7 días" rinde más porque son leads recientes que ya conocían el proyecto; los de Evolta son de hace 6 meses. La <b>única comparación limpia de plantilla</b> es la A/B de abajo (misma gente, misma hora, mismos asesores).</div>';
   }
 
-  function kpis(j){
-    function card(cls,label,val,sub){return '<div class="hcard '+cls+'"><div class="hl">'+label+'</div><div class="hv mono">'+val+'</div><div class="hs">'+(sub||"")+'</div></div>';}
-    return '<div class="hcards">'
-      + card("magenta","Enviados",j.enviados,"mensajes de la ola")
-      + card("verde","Contestaron",j.respondieron,pct1(j.respondieron,j.enviados)+"% de respuesta")
-      + card((j.tasa_respuesta_pct>=5?"verde":j.tasa_respuesta_pct>=2?"amarillo":"rojo"),"Tasa de respuesta",j.tasa_respuesta_pct+"%","meta referencial ≥ 5%")
-      + card("rojo","Sin respuesta",j.sin_respuesta_cerrados,"48h sin contestar")
-      + card("amarillo","En ventana 48h",j.todavia_en_ventana_48h,"aún pueden contestar")
-      + '</div>';
+  /* ---------- panel A/B ---------- */
+  function abPanelCard(c){
+    var d=datos[c.tag];
+    var head='<div style="font-size:10.5px;color:var(--muted2);text-transform:uppercase;letter-spacing:.05em">Grupo '+c.ab+'</div><div style="font-weight:700;font-size:14px;margin:2px 0 2px">'+esc(c.plantilla)+'</div><div style="font-size:11px;color:var(--muted)">'+esc(c.nombre)+'</div>';
+    if(!d||d.__loading) return '<div class="actcard">'+head+'<div class="rcload" style="margin-top:10px">cargando…</div></div>';
+    if(d.error) return '<div class="actcard">'+head+'<div style="color:var(--rojo);font-size:12px;margin-top:10px">'+esc(d.error)+'</div></div>';
+    var j=d.data,t=j.tasa_respuesta_pct;
+    return '<div class="actcard">'+head
+      +'<div style="display:flex;align-items:baseline;gap:8px;margin-top:12px"><span class="mono" style="font-size:34px;font-weight:700;color:var(--'+(t>=5?"verde":t>=2?"amarillo":"rojo")+')">'+t+'%</span><span style="font-size:12px;color:var(--muted)">tasa</span></div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:6px"><b class="mono" style="color:var(--text)">'+j.respondieron+'</b> respuestas de <b class="mono" style="color:var(--text)">'+j.enviados+'</b> · '+(j.fallidos_marcados||0)+' fallidos</div></div>';
+  }
+  function renderAB(){
+    var el=document.getElementById("rcAB");if(!el)return;
+    var A=campana("ab-reapertura"),B=campana("ab-productos");
+    var dA=datos["ab-reapertura"],dB=datos["ab-productos"];
+    var rA=(dA&&dA.data)?dA.data.respondieron:null, rB=(dB&&dB.data)?dB.data.respondieron:null;
+    var veredicto="";
+    if(rA!=null&&rB!=null){
+      if(rA<15||rB<15){veredicto='<div class="rcnote" style="margin-top:12px;border-color:var(--amarillo);background:var(--amarillo-dim)">🟡 <b>Muestra chica ('+rA+' vs '+rB+' respuestas): la diferencia NO es concluyente.</b> Con menos de ~15 respuestas por grupo es ruido — el mismo A/B ya se dio vuelta de un día para otro. Hace falta más volumen antes de declarar ganador.</div>';}
+      else{var win=rA===rB?"empate":(rA>rB?A.plantilla:B.plantilla);veredicto='<div class="rcnote" style="margin-top:12px;border-color:var(--verde);background:var(--verde-dim)">✅ Con este volumen, va ganando <b>'+esc(win)+'</b>.</div>';}
+    }
+    el.innerHTML='<div class="rcnote" style="margin-bottom:12px">Misma población, misma hora, mismos 3 asesores con 50 leads cada uno. Es la <b>única comparación válida</b> de plantilla.</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'+abPanelCard(A)+abPanelCard(B)+'</div>'+veredicto;
   }
 
-  function embudo(j){
-    var reach=reachAcum(j.donde_estan_los_que_respondieron);
-    var pasos=[
-      {n:"Enviados",v:j.enviados},
-      {n:"Contestaron",v:j.respondieron},
-      {n:"Contactado",v:reach[0]},
-      {n:"Agenda",v:reach[1]},
-      {n:"Meet",v:reach[2]},
-      {n:"Separación",v:reach[3]},
-      {n:"Venta",v:reach[4]}
-    ];
-    var maxV=pasos[0].v||1;
-    var html='<div class="funnelwrap">';
-    pasos.forEach(function(s,i){
-      var w=clamp((s.v/maxV)*100);
-      var conv=i>0?pct1(s.v,pasos[i-1].v):null;
-      html+='<div class="fstage"><div class="fbarrow">'
-        +'<div class="flabel"><span class="fnum">'+(i+1)+'</span>'+esc(s.n)+'</div>'
-        +'<div class="fbar"><span class="fbarfill" style="width:'+w+'%"></span><span class="fcount mono">'+s.v+'</span></div>'
-        +'</div>'
-        +'<div class="conv '+(conv==null?"muted":(conv>=50?"ok":conv>=20?"warn":"bad"))+'">'+(conv==null?"—":conv+'%')+(conv==null?"":'<span class="convtarget"> del anterior</span>')+'</div>'
-        +'</div>';
-    });
-    html+='</div>';
-    return html;
+  /* ---------- detalle por campaña (embudo + asesores + respuestas) ---------- */
+  function drillEtapas(j){
+    var m=j.por_etapa||{};
+    var filas=Object.keys(m).map(function(k){return {n:k,v:m[k]};}).sort(function(a,b){return b.v-a.v;});
+    if(!filas.length)return '<div class="rcload">Sin datos de etapa.</div>';
+    var max=filas.reduce(function(s,f){return Math.max(s,f.v);},1);
+    return '<div class="rcbars">'+filas.map(function(f){
+      return '<div class="rcbarrow"><span class="rcbarname" style="width:150px">'+esc(f.n)+'</span>'
+        +'<span class="rcbartrack"><span class="rcbarfill" style="width:'+clamp((f.v/max)*100)+'%"></span></span>'
+        +'<span class="rcbarval mono">'+f.v+'</span></div>';
+    }).join("")+'</div>';
   }
-
-  function tablaOla(j){
-    var reach=reachAcum(j.donde_estan_los_que_respondieron);
-    return '<div class="tablewrap"><table class="table"><thead><tr>'
-      +'<th>Ola</th><th>Enviados</th><th>Contestaron</th><th>Tasa</th><th>Citas (Agenda+)</th><th>Ventas</th>'
-      +'</tr></thead><tbody>'
-      +'<tr><td class="aname">'+esc(olaSel.replace("ola","Ola "))+'</td>'
-      +'<td class="mono">'+j.enviados+'</td>'
-      +'<td class="mono">'+j.respondieron+'</td>'
-      +'<td class="mono">'+j.tasa_respuesta_pct+'%</td>'
-      +'<td class="mono">'+reach[1]+'</td>'
-      +'<td class="mono">'+reach[4]+'</td></tr>'
-      +'</tbody></table></div>'
-      +'<div class="rcnote" style="margin-top:10px">Por ahora se muestra la ola seleccionada. Cuando lances <b>ola2</b>, <b>ola3</b>… cámbiala en el selector de arriba y su fila aparece aquí.</div>';
-  }
-
-  function porAsesor(j){
-    var m=j.respondieron_por_asesor||{};
+  function drillAsesores(j){
+    var m=j.por_asesor||{};
     var filas=Object.keys(m).map(function(id){return {n:NOMBRES[id]||("Usuario "+id),v:m[id]};}).sort(function(a,b){return b.v-a.v;});
-    if(!filas.length) return '<div class="rcload">Nadie ha respondido esta ola todavía.</div>';
+    if(!filas.length)return '<div class="rcload">Sin datos.</div>';
     var max=filas.reduce(function(s,f){return Math.max(s,f.v);},1);
     return '<div class="rcbars">'+filas.map(function(f){
       return '<div class="rcbarrow"><span class="rcbarname">'+esc(f.n)+'</span>'
@@ -1122,75 +1152,65 @@ window.paintHoras=paintHoras;
         +'<span class="rcbarval mono">'+f.v+'</span></div>';
     }).join("")+'</div>';
   }
+  function drillRespuestas(j){
+    var d=j.detalle_respuestas||[];
+    if(!d.length)return '<div class="rcload">Nadie ha respondido esta campaña todavía.</div>';
+    var filas=d.map(function(r){
+      return '<tr><td class="mono">'+esc(r.id)+'</td><td>'+esc(r.nombre)+'</td><td>'+esc(r.etapa)+'</td><td>'+esc(NOMBRES[r.responsable]||r.responsable)+'</td><td><span class="rtag si">'+esc(r.senal)+'</span></td></tr>';
+    }).join("");
+    return '<div class="tablewrap"><table class="table" style="min-width:620px"><thead><tr><th>Lead</th><th>Nombre</th><th>Etapa actual</th><th>Responsable</th><th>Señal</th></tr></thead><tbody>'+filas+'</tbody></table></div>';
+  }
+  function renderDrillBody(){
+    var el=document.getElementById("rcDrillBody");if(!el)return;
+    var c=campana(drillSel), d=datos[drillSel];
+    if(!d||d.__loading){el.innerHTML='<div class="rcload">Cargando '+esc(drillSel)+'…</div>';return;}
+    if(d.error){el.innerHTML='<div class="rcnote">No se pudo cargar: '+esc(d.error)+'</div>';return;}
+    var j=d.data;
+    el.innerHTML='<div class="hcards" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">'
+        +'<div class="hcard magenta"><div class="hl">Enviados</div><div class="hv mono">'+j.enviados+'</div><div class="hs">'+esc(c.plantilla)+'</div></div>'
+        +'<div class="hcard verde"><div class="hl">Respuestas</div><div class="hv mono">'+j.respondieron+'</div><div class="hs">'+j.tasa_respuesta_pct+'% de tasa</div></div>'
+        +'<div class="hcard rojo"><div class="hl">Fallidos</div><div class="hv mono">'+(j.fallidos_marcados||0)+'</div><div class="hs">no entregados</div></div>'
+        +'<div class="hcard amarillo"><div class="hl">Costo</div><div class="hv mono">'+usd(j.enviados*COSTO)+'</div><div class="hs">a $'+COSTO.toFixed(3)+'/msg</div></div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:4px 0 8px">En qué etapa quedó cada lead</div>'+drillEtapas(j)
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Respuestas por asesor</div>'+drillAsesores(j)
+      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Detalle de respuestas ('+(j.detalle_respuestas||[]).length+') · señal que la detectó</div>'+drillRespuestas(j);
+  }
 
-  function pintar(j){
+  /* ---------- cobertura base Evolta (referencial) ---------- */
+  function renderCov(){
+    var el=document.getElementById("rcCov");if(!el)return;
+    var total=2813, cont=596, resto=total-cont;
+    el.innerHTML='<div class="hcards" style="grid-template-columns:repeat(4,1fr)">'
+      +'<div class="hcard"><div class="hl">Base Evolta</div><div class="hv mono">'+total+'</div><div class="hs">leads ene–mar 2026</div></div>'
+      +'<div class="hcard"><div class="hl">Ya contactados</div><div class="hv mono">'+cont+'</div><div class="hs">tocados por campañas</div></div>'
+      +'<div class="hcard magenta"><div class="hl">Sin tocar</div><div class="hv mono">'+resto+'</div><div class="hs">disponibles</div></div>'
+      +'<div class="hcard amarillo"><div class="hl">Costo del resto</div><div class="hv mono">'+usd(resto*COSTO)+'</div><div class="hs">a $'+COSTO.toFixed(3)+'/msg</div></div>'
+      +'</div>'
+      +'<div class="rcnote" style="margin-top:12px">Tiers de la base: <b>A</b> 216 (tuvieron cita/visita/proforma) · <b>B</b> 760 (2+ intentos) · <b>C</b> 1.824 (nunca respondieron). Números referenciales del último corte.</div>';
+  }
+
+  /* ---------- shell ---------- */
+  function shell(){
     var el=document.getElementById("viewReactivacion");if(!el)return;
+    var opts=CAMPANAS.map(function(c){return '<option value="'+c.tag+'"'+(c.tag===drillSel?" selected":"")+'>'+esc(c.nombre)+'</option>';}).join("");
     el.innerHTML=''
-      +'<section class="panel">'+selectorHtml()+kpis(j)+'</section>'
-      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>📉 Embudo de la campaña</h2><span class="muted">de enviados a venta · % del paso anterior</span></div>'
-        +'<div class="rcnote" style="margin-bottom:12px">Lo importante no es cuántos mensajes salieron, sino <b>hasta dónde llegaron</b>. Cuenta la posición actual de cada lead que respondió; quien respondió y volvió a "No responde" o "Venta Perdido" se cuenta solo hasta <b>Contestaron</b>.</div>'
-        +embudo(j)+'</section>'
-      +'<div class="grid" style="margin-top:16px">'
-        +'<section class="panel" style="grid-column:1 / -1"><div class="panelhead"><h2>📋 Resumen por ola</h2></div>'+tablaOla(j)+'</section>'
-      +'</div>'
-      +'<div class="grid" style="margin-top:16px">'
-        +'<section class="panel" style="grid-column:1 / -1"><div class="panelhead"><h2>👩‍💼 Respuestas por asesora</h2></div>'+porAsesor(j)+'</section>'
-      +'</div>'
-      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>📅 Envíos por día y hora · tandas</h2><span class="muted" id="rcEnviosUpd"></span></div><div id="rcEnvios"><div class="rcload">Cargando tandas… (puede tardar ~1 min)</div></div></section>';
-    cargarEnvios();
-    var upd=document.getElementById("rcUpd");
-    if(upd){try{upd.textContent="· "+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});}catch(e){}}
+      +'<section class="panel"><div class="panelhead"><h2>🔄 Reactivación · comparador de campañas</h2>'
+        +'<button class="refresh" onclick="reactReload()" title="Recargar todo">↻</button></div>'
+        +'<div class="rcnote">Cada campaña se agrupa por su <b>etiqueta</b>. La respuesta se cuenta solo por marca real (el cliente escribió), nunca por estar en una etapa avanzada.</div>'
+        +'<div id="rcTabla" style="margin-top:14px"><div class="rcload">Cargando campañas…</div></div></section>'
+      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>🆚 Prueba A/B de plantillas</h2><span class="muted">REAPERTURA vs PRODUCTOS</span></div><div id="rcAB"></div></section>'
+      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>🔎 Detalle por campaña</h2>'
+        +'<select class="rcselect" id="rcDrill" onchange="reactDrill(this.value)">'+opts+'</select></div>'
+        +'<div id="rcDrillBody"></div></section>'
+      +'<section class="panel" style="margin-top:16px"><div class="panelhead"><h2>🗂️ Cobertura de la base Evolta</h2><span class="muted">cuánto queda por enviar</span></div><div id="rcCov"></div></section>';
+    renderCov();
   }
 
-  function box(msg){var el=document.getElementById("viewReactivacion");if(el)el.innerHTML='<section class="panel">'+selectorHtml()+'<div class="rcload">'+msg+'</div></section>';}
-
-  function cargar(force){
-    if(!force&&cache[olaSel]){pintar(cache[olaSel]);return;}
-    box('Cargando la campaña <b>'+esc(olaSel)+'</b> desde Kommo…<br>Puede tardar hasta 1 minuto si el servidor estaba dormido.');
-    var ctrl=new AbortController();var to=setTimeout(function(){ctrl.abort();},75000);
-    fetch(API+"?etiqueta="+encodeURIComponent(olaSel)+"&nc="+Date.now(),{signal:ctrl.signal})
-      .then(function(r){clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
-      .then(function(j){if(j&&j.error)throw new Error(j.error);cache[olaSel]=j;pintar(j);})
-      .catch(function(e){clearTimeout(to);box('No se pudo cargar <b>'+esc(olaSel)+'</b>.<br><span style="color:var(--muted2)">'+esc(e&&e.message?e.message:"error")+'</span><br><button class="refresh" style="margin-top:12px" onclick="reactReload()">Reintentar</button>');});
-  }
-
-  /* ---- Envíos por día y hora (tandas), del endpoint /api/envios/timeline ---- */
-  var cacheEnv={};
-  function renderEnvios(j){
-    var el=document.getElementById("rcEnvios");if(!el)return;
-    var dias=(j&&j.por_dia)||[], tandas=(j&&j.tandas)||[];
-    if(!tandas.length){el.innerHTML='<div class="rcnote">Aún no hay envíos registrados para <b>'+esc(olaSel)+'</b> en el período.</div>';return;}
-    var max=dias.reduce(function(s,d){return Math.max(s,d.enviados);},1);
-    var barras=dias.map(function(d){
-      var w=clamp((d.enviados/max)*100);
-      return '<div class="rcbarrow"><span class="rcbarname">'+esc(d.fecha)+'</span>'
-        +'<span class="rcbartrack"><span class="rcbarfill" style="width:'+w+'%"></span></span>'
-        +'<span class="rcbarval mono">'+d.enviados+'</span></div>';
-    }).join("");
-    var filas=tandas.slice().reverse().map(function(t){
-      var tasa=pct1(t.respondieron,t.enviados);
-      var tone=tasa>=5?"ok":tasa>=2?"warn":"bad";
-      return '<tr><td class="mono">'+esc(t.fecha)+'</td><td class="mono">'+esc(t.hora)+'</td><td class="mono">'+t.enviados+'</td><td class="mono">'+t.respondieron+'</td><td class="mono"><span class="pill '+tone+'">'+tasa+'%</span></td></tr>';
-    }).join("");
-    el.innerHTML='<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Enviados por día</div>'
-      +'<div class="rcbars">'+barras+'</div>'
-      +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:18px 0 8px">Cada tanda · día y hora (Lima)</div>'
-      +'<div class="tablewrap"><table class="table"><thead><tr><th>Fecha</th><th>Hora</th><th>Enviados</th><th>Respondieron</th><th>Tasa</th></tr></thead><tbody>'+filas+'</tbody></table></div>'
-      +'<div class="rcnote" style="margin-top:10px">La hora es cuando el lead entró a "Reactivación" (= momento del envío). "Respondieron" = cuántos de esa tanda contestaron en total. Sirve para elegir el mejor día y hora.</div>';
-    var u=document.getElementById("rcEnviosUpd");if(u&&j)u.textContent="· "+(j.total_enviados||0)+" envíos · "+(j.total_respondieron||0)+" respuestas";
-  }
-  function cargarEnvios(){
-    if(cacheEnv[olaSel]){renderEnvios(cacheEnv[olaSel]);return;}
-    var ctrl=new AbortController();var to=setTimeout(function(){ctrl.abort();},75000);
-    fetch("https://pachamama-backend-v0v0.onrender.com/api/envios/timeline?etiqueta="+encodeURIComponent(olaSel)+"&dias=60&nc="+Date.now(),{signal:ctrl.signal})
-      .then(function(r){clearTimeout(to);if(!r.ok)throw new Error("HTTP "+r.status);return r.json();})
-      .then(function(j){if(j&&j.error)throw new Error(j.error);cacheEnv[olaSel]=j;renderEnvios(j);})
-      .catch(function(e){clearTimeout(to);var el=document.getElementById("rcEnvios");if(el)el.innerHTML='<div class="rcnote">No se pudieron cargar las tandas.<br><span style="color:var(--muted2)">'+esc(e&&e.message?e.message:"error")+'</span></div>';});
-  }
-
-  window.loadReactivacion=function(){ cargado=true; cargar(false); };
-  window.reactSetOla=function(o){ olaSel=o; cargar(false); };
-  window.reactReload=function(){ delete cache[olaSel]; delete cacheEnv[olaSel]; cargar(true); };
+  window.loadReactivacion=function(){ if(!cargado){cargado=true;shell();cargarTodas(false);} };
+  window.reactReload=function(){ datos={}; shell(); cargarTodas(true); };
+  window.reactDrill=function(tag){ drillSel=tag; renderDrillBody(); };
+  window.reactSort=function(){ ordenarTasa=!ordenarTasa; renderTabla(); };
 })();
 </script>
 </body>
