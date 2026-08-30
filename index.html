@@ -1059,13 +1059,18 @@ window.paintHoras=paintHoras;
       .catch(function(e){clearTimeout(to);datos[c.tag]={error:(e&&e.message)?e.message:"error"};});
   }
   function cargarTodas(force){
-    CAMPANAS.forEach(function(c){
-      if(!force&&datos[c.tag])return;
-      if(!force&&datos[c.tag]&&datos[c.tag].__loading)return;
-      datos[c.tag]={__loading:true};
-      fetchOne(c).then(function(){renderTabla();renderAB();if(c.tag===drillSel)renderDrillBody();});
-    });
+    /* SECUENCIAL a propósito: Render gratis (1 instancia) no aguanta 6 cargas
+       de pipeline a la vez (da HTTP 500). Va una por una; la tabla se llena
+       de a poco. */
+    var lista=CAMPANAS.filter(function(c){return force||!(datos[c.tag]&&datos[c.tag].data);});
+    lista.forEach(function(c){datos[c.tag]={__loading:true};});
     renderTabla();renderAB();renderDrillBody();
+    var i=0;
+    (function next(){
+      if(i>=lista.length)return;
+      var c=lista[i++];
+      fetchOne(c).then(function(){renderTabla();renderAB();if(c.tag===drillSel)renderDrillBody();next();});
+    })();
   }
 
   /* ---------- tabla comparativa ---------- */
