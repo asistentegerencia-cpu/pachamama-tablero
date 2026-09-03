@@ -359,8 +359,9 @@ var CONSECUENCIAS = {
 /* El estimado de "leads necesarios/día" usa la conversión de planeación
    histórica de Agenda (0.55), independiente del objetivo saludable META_AGENDA
    de arriba, para que ese cálculo no cambie al subir el indicador. */
-var LEADS_NECESARIOS = Math.ceil(META_LOTES / TARGETS.cierre / TARGETS.presentacion / 0.55 / TARGETS.contacto);
-var LEADS_DIA = Math.ceil(LEADS_NECESARIOS / 26);
+var META_LEADS_DIA = 30; /* PARÁMETRO EDITABLE: meta de leads por día (la tarjeta "Leads hoy" se mide contra esto) */
+var LEADS_DIA = META_LEADS_DIA;
+var LEADS_NECESARIOS = META_LEADS_DIA * 26; /* ~leads necesarios al mes (26 días hábiles) */
 var REFRESH_MS = 20000, FETCH_TIMEOUT_MS = 30000;
 
 /* --- iconos --- */
