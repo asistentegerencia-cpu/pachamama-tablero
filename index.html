@@ -202,8 +202,9 @@ table.t tr:hover td{background:var(--accent-100)}
 
       <section class="view" id="v-hist">
         <div class="filt">
-          <span class="seg" id="hFecha"><button data-f="hoy" class="on">Hoy</button><button data-f="ayer">Ayer</button><button data-f="7">7 días</button><button data-f="30">30 días</button><button data-f="">Todo</button></span>
-          <select id="hFranja" onchange="renderHist()"><option value="">Franja: toda</option><option value="mad">Madrugada 00:00–05:59</option><option value="man">Mañana 06:00–11:59</option><option value="tar">Tarde 12:00–18:59</option><option value="noc">Noche 19:00–23:59</option></select>
+          <span class="seg" id="hFecha"><button data-f="hoy">Hoy</button><button data-f="ayer">Ayer</button><button data-f="7">7 días</button><button data-f="mes" class="on">Mes actual</button><button data-f="30">30 días</button><button data-f="">Todo</button><button data-f="custom">Rango…</button></span>
+          <span id="hCustom" hidden style="display:inline-flex;gap:6px;align-items:center"><input type="date" id="hDesde" onchange="reloadHtab()"><span style="color:var(--muted)">→</span><input type="date" id="hHasta" onchange="reloadHtab()"></span>
+          <span class="flbl">Hora</span><select id="hHoraD" onchange="renderHist()"></select><span style="color:var(--muted)">a</span><select id="hHoraH" onchange="renderHist()"></select>
           <select id="hAse" onchange="renderHist()"><option value="">Todos los asesores</option></select>
           <select id="hCamp" onchange="renderHist()"><option value="">Todas las campañas</option></select>
           <select id="hSem" onchange="renderHist()"><option value="">Todos los semáforos</option><option value="verde">A tiempo ≤10 min</option><option value="amarillo">10–30 min</option><option value="rojo">+30 min</option><option value="gris">Sin atender</option></select>
@@ -266,8 +267,9 @@ function go(v){view=v;document.querySelectorAll('.view').forEach(function(s){s.c
 window.go=go;
 document.querySelector('.nav button').classList.add('on');document.querySelectorAll('.mtop button')[0].classList.add('on');
 function lazy(v){
-  if((v==='citas'||v==='hist'||v==='horas'||v==='dash')&&!HIST){loadHist(function(){if(v==='citas')renderCitas();if(v==='hist')renderHist();if(v==='horas')renderHoras();if(v==='dash')renderCitasHoy();});}
-  else{if(v==='citas')renderCitas();if(v==='hist')renderHist();if(v==='horas')renderHoras();}
+  if((v==='citas'||v==='horas'||v==='dash')&&!HIST){loadHist(function(){if(v==='citas')renderCitas();if(v==='horas')renderHoras();if(v==='dash')renderCitasHoy();});}
+  else{if(v==='citas')renderCitas();if(v==='horas')renderHoras();if(v==='dash')renderCitasHoy();}
+  if(v==='hist'){loadHtab(function(){renderHist();});}
   if(v==='equipo'){loadActividad();loadReparto();}
 }
 
@@ -334,14 +336,31 @@ function pobFiltros(){
 function seg(id,cb){var el=document.getElementById(id);if(!el)return;el.querySelectorAll('button').forEach(function(b){b.onclick=function(){el.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');cb(b.dataset);};});}
 
 /* ===== HIST ===== */
-function rangoFecha(f){var r={d:null,h:null};var now=Date.now();if(f==='hoy'){var d=new Date();d.setHours(0,0,0,0);r.d=d.getTime();}else if(f==='ayer'){var d0=new Date();d0.setHours(0,0,0,0);r.h=d0.getTime();r.d=d0.getTime()-864e5;}else if(f==='7'){r.d=now-7*864e5;}else if(f==='30'){r.d=now-30*864e5;}return r;}
-function franjaOk(h,fr){if(!fr)return true;if(fr==='mad')return h<6;if(fr==='man')return h>=6&&h<12;if(fr==='tar')return h>=12&&h<19;if(fr==='noc')return h>=19;return true;}
-var hF={fecha:'hoy',franja:'',ase:'',camp:'',sem:'',q:''};
+var hF={fecha:'mes',horaD:'',horaH:'',ase:'',camp:'',sem:'',q:''};
+var HTAB=null; // datos de la TABLA del Historial (rango propio; independiente del baseline HIST del mes)
+function monthStartSec(){var d=new Date();d.setDate(1);d.setHours(0,0,0,0);return Math.floor(d.getTime()/1000);}
+function histRange(){var nowS=Math.floor(Date.now()/1000);var f=hF.fecha;
+  if(f==='mes')return {desde:monthStartSec(),hasta:nowS};
+  if(f==='hoy'){var d=new Date();d.setHours(0,0,0,0);return {desde:Math.floor(d.getTime()/1000),hasta:nowS};}
+  if(f==='ayer'){var d0=new Date();d0.setHours(0,0,0,0);var s=Math.floor(d0.getTime()/1000);return {desde:s-86400,hasta:s};}
+  if(f==='7')return {desde:nowS-7*86400,hasta:nowS};
+  if(f==='30')return {desde:nowS-30*86400,hasta:nowS};
+  if(f==='')return {desde:0,hasta:nowS};
+  if(f==='custom'){var vd=(document.getElementById('hDesde')||{}).value,vh=(document.getElementById('hHasta')||{}).value;return {desde:vd?Math.floor(new Date(vd+'T00:00:00').getTime()/1000):0,hasta:vh?Math.floor(new Date(vh+'T23:59:59').getTime()/1000):nowS};}
+  return {desde:monthStartSec(),hasta:nowS};}
+function loadHtab(cb){
+  if(hF.fecha==='mes'&&HIST&&HIST.filas){HTAB=HIST;cb&&cb();return;}
+  var r=histRange();var hb=document.getElementById('histBody');if(hb)hb.innerHTML='<div class="loading">Cargando el período…</div>';
+  fetch(EP.hist+'?desde='+r.desde+'&hasta='+r.hasta).then(function(x){return x.json();}).then(function(j){HTAB=j;if(!HIST&&hF.fecha==='mes')HIST=j;pobFiltros();cb&&cb();loadReasig();}).catch(function(){cb&&cb();});
+}
+function reloadHtab(){loadHtab(function(){renderHist();});}
+window.reloadHtab=reloadHtab;
+function horaOk(t){var lo=hF.horaD===''?null:+hF.horaD,hi=hF.horaH===''?null:+hF.horaH;if(lo==null&&hi==null)return true;var h=limaH(t);if(lo!=null&&hi!=null)return lo<=hi?(h>=lo&&h<=hi):!(h<lo&&h>hi);if(lo!=null)return h>=lo;return h<=hi;}
 function histFiltradas(){
-  if(!HIST||!HIST.filas)return [];var r=rangoFecha(hF.fecha);
-  return HIST.filas.filter(function(f){
-    var t=tISO(f.entrada);if(r.d!=null&&(t==null||t<r.d))return false;if(r.h!=null&&(t==null||t>=r.h))return false;
-    if(hF.franja&&(t==null||!franjaOk(limaH(t),hF.franja)))return false;
+  var src=(HTAB||HIST);if(!src||!src.filas)return [];
+  return src.filas.filter(function(f){
+    var t=tISO(f.entrada);
+    if((hF.horaD!==''||hF.horaH!=='')&&(t==null||!horaOk(t)))return false;
     if(hF.ase&&(f.asesor_final||'')!==hF.ase)return false;
     if(hF.camp&&(f.campania||'')!==hF.camp)return false;
     var s=f.semaforo||'gris';if(hF.sem&&s!==hF.sem)return false;
@@ -354,7 +373,7 @@ function etapaSteps(f){var order=['Contactado','Agenda','Meet','Separación','Ve
   var s='';for(var i=1;i<=5;i++){var cls=i<=idx?(idx>=5&&i===5?'s cli':'s on'):'s';s+='<span class="'+cls+'"></span>';}
   var lbl=['—','Lead','Contactado','Meet','Presentado','Cliente'][idx]||nm;return '<span class="steps">'+s+'</span> <span style="font-size:11.5px;font-weight:600">'+esc(lbl)+'</span>';}
 function paintHist(){
-  if(!HIST||!HIST.filas){document.getElementById('histBody').innerHTML='<div class="loading">Cargando…</div>';return;}
+  var SRC=(HTAB||HIST);if(!SRC||!SRC.filas){document.getElementById('histBody').innerHTML='<div class="loading">Cargando…</div>';return;}
   var f=histFiltradas();var n=f.length;var at=f.filter(function(x){return x.tiempo_min!=null;});var na=at.length;
   var verde=at.filter(function(x){return x.semaforo==='verde';}).length,amar=at.filter(function(x){return x.semaforo==='amarillo';}).length,rojo=at.filter(function(x){return x.semaforo==='rojo';}).length;
   var reas=f.filter(function(x){return x.reasignado;}).length,sin=n-na;
@@ -377,15 +396,15 @@ function paintHist(){
   var rows=f.slice(0,300).map(function(x){var s=x.semaforo||'gris';var L=lbl[s];return '<tr><td class="main">'+esc(x.nombre)+'</td><td>'+esc(x.campania||'—')+'</td><td class="mono">'+hhmm(x.entrada)+'</td><td class="mono">'+hhmm(x.atendido)+'</td><td class="mono">'+(x.tiempo_min!=null?x.tiempo_min+' min':'—')+'</td><td><span class="sdot"><span class="d" style="background:'+L[1]+'"></span>'+L[0]+'</span></td><td>'+reasCell(x)+'</td><td>'+esc(x.asesor_final||'—')+'</td><td>'+etapaSteps(x)+'</td></tr>';}).join('');
   document.getElementById('histBody').innerHTML='<table class="t" style="min-width:900px"><thead><tr><th>Lead</th><th>Campaña</th><th>Entró</th><th>Atendió</th><th>Tiempo</th><th>Semáforo</th><th>Reasignado</th><th>Asesor final</th><th>Etapa</th></tr></thead><tbody>'+(rows||'<tr><td colspan="9" class="loading">Sin resultados con esos filtros.</td></tr>')+'</tbody></table>';
   // chips + count
-  var chips=[];var fl={hoy:'Hoy',ayer:'Ayer','7':'7 días','30':'30 días','':'Todo'}[hF.fecha];if(fl&&hF.fecha!=='')chips.push(fl);
-  if(hF.franja)chips.push({mad:'Madrugada',man:'Mañana',tar:'Tarde',noc:'Noche'}[hF.franja]);
+  var chips=[];var fl={hoy:'Hoy',ayer:'Ayer','7':'7 días',mes:'Mes actual','30':'30 días','':'Todo',custom:'Rango'}[hF.fecha];if(fl)chips.push(fl);
+  if(hF.horaD!==''||hF.horaH!==''){var pd=function(x){return x===''?'…':(x<10?'0'+x:x)+':00';};chips.push('Hora '+pd(hF.horaD)+'–'+pd(hF.horaH));}
   if(hF.ase)chips.push(hF.ase.split(' ')[0]);if(hF.camp)chips.push(hF.camp);if(hF.sem)chips.push(hF.sem);if(hF.q)chips.push('"'+hF.q+'"');
   document.getElementById('hChips').innerHTML=chips.length?chips.map(function(c){return '<span class="chip">'+esc(c)+'</span>';}).join(''):'<span class="note">ninguno</span>';
-  document.getElementById('hCount').textContent='mostrando '+n+' de '+HIST.filas.length;
+  document.getElementById('hCount').textContent='mostrando '+n+' de '+SRC.filas.length;
 }
-function renderHist(){hF.franja=(document.getElementById('hFranja')||{}).value||'';hF.ase=(document.getElementById('hAse')||{}).value||'';hF.camp=(document.getElementById('hCamp')||{}).value||'';hF.sem=(document.getElementById('hSem')||{}).value||'';hF.q=(document.getElementById('hQ')||{}).value||'';paintHist();}
+function renderHist(){hF.horaD=(document.getElementById('hHoraD')||{}).value||'';hF.horaH=(document.getElementById('hHoraH')||{}).value||'';hF.ase=(document.getElementById('hAse')||{}).value||'';hF.camp=(document.getElementById('hCamp')||{}).value||'';hF.sem=(document.getElementById('hSem')||{}).value||'';hF.q=(document.getElementById('hQ')||{}).value||'';paintHist();}
 window.renderHist=renderHist;
-function limpiarHist(){hF={fecha:'hoy',franja:'',ase:'',camp:'',sem:'',q:''};['hFranja','hAse','hCamp','hSem','hQ'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});var sg=document.getElementById('hFecha');sg.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.f==='hoy');});renderHist();}
+function limpiarHist(){hF={fecha:'mes',horaD:'',horaH:'',ase:'',camp:'',sem:'',q:''};['hHoraD','hHoraH','hAse','hCamp','hSem','hQ','hDesde','hHasta'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});var cu=document.getElementById('hCustom');if(cu)cu.hidden=true;var sg=document.getElementById('hFecha');sg.querySelectorAll('button').forEach(function(b){b.classList.toggle('on',b.dataset.f==='mes');});reloadHtab();}
 window.limpiarHist=limpiarHist;
 
 /* ===== CITAS ===== */
@@ -499,11 +518,12 @@ function renderCron(){
 }
 
 /* ===== filtros click ===== */
-seg('hFecha',function(d){hF.fecha=d.f;renderHist();});
+seg('hFecha',function(d){hF.fecha=d.f;var cu=document.getElementById('hCustom');if(cu)cu.hidden=(d.f!=='custom');reloadHtab();});
 seg('citFecha',function(d){cF.fecha=d.f;renderCitas();});
 seg('hrPer',function(d){hrPer=d.p;renderHoras();});
 
 /* ===== init ===== */
+(function(){var oh='<option value="">--</option>';for(var h=0;h<24;h++)oh+='<option value="'+h+'">'+(h<10?'0'+h:h)+':00</option>';var a=document.getElementById('hHoraD'),b=document.getElementById('hHoraH');if(a)a.innerHTML=oh;if(b)b.innerHTML=oh;})();
 badge('load');
 loadDash();
 loadHist(function(){renderCitasHoy();});
