@@ -271,7 +271,7 @@ table.t tr:hover td{background:var(--accent-100)}
 })();
 var B="https://pachamama-backend-v0v0.onrender.com";
 var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config"};
-var META_LOTES=60,META_LEADS_DIA=30,SLA_V=10,SLA_R=30,META_AGENDA=0.70;
+var META_LOTES=60,META_LEADS_DIA=30,SLA_V=10,SLA_R=30,META_AGENDA=0.90;
 var DASH=null,HIST=null,REASIG={},USERS=null,REP=null,ACT={},actDias="hoy",actKey="dias=hoy",view="dash";
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function pctv(x,b){return b?Math.round(x/b*1000)/10:0;}
@@ -374,7 +374,13 @@ function renderCitasHoy(){
   var hoy=HIST.filas.filter(function(f){return f.cita_ts&&f.cita_ts>=ini&&f.cita_ts<fin;});
   var byA={};hoy.forEach(function(f){var a=(f.asesor_final||'—').split(' ')[0];byA[a]=(byA[a]||0)+1;});
   var chips=Object.keys(byA).map(function(a){return '<span class="tag"><b class="mono">'+byA[a]+'</b> '+esc(a)+'</span>';}).join('');
-  el.innerHTML='<div class="num mono" style="font-size:32px;font-weight:800">'+hoy.length+' <small style="font-size:12px;color:var(--muted);font-family:Archivo">citas · '+Object.keys(byA).length+' asesores</small></div><div style="margin-top:8px">'+(chips||'<span class="note">No hay citas registradas para hoy.</span>')+'</div>';
+  // meets completados hoy: cita de hoy cuyo lead ya está presentado (Meet/Separación/Venta)
+  var PRES={'Meet':1,'Separación':1,'Venta concretada':1};
+  var comp=hoy.filter(function(f){return PRES[f.etapa_actual];});
+  var byC={};comp.forEach(function(f){var a=(f.asesor_final||'—').split(' ')[0];byC[a]=(byC[a]||0)+1;});
+  var compLines=Object.keys(byC).sort(function(x,y){return byC[y]-byC[x];}).map(function(a){var n=byC[a];return '<div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-top:3px"><span class="d" style="width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none"></span><b>'+esc(a)+'</b> completó '+n+' meet'+(n>1?'s':'')+'</div>';}).join('');
+  var compBlock='<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div style="font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700">Meets completados hoy · <span class="mono" style="color:var(--ok)">'+comp.length+'</span></div>'+(compLines||'<div class="note" style="margin-top:3px">Aún no hay meets completados hoy.</div>')+'</div>';
+  el.innerHTML='<div class="num mono" style="font-size:32px;font-weight:800">'+hoy.length+' <small style="font-size:12px;color:var(--muted);font-family:Archivo">citas · '+Object.keys(byA).length+' asesores</small></div><div style="margin-top:8px">'+(chips||'<span class="note">No hay citas registradas para hoy.</span>')+'</div>'+compBlock;
 }
 
 /* ===== filtros pob ===== */
