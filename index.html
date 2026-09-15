@@ -289,22 +289,31 @@ function renderDash(){
   if(!DASH)return;
   var m=DASH.meta_mensual||{},lotes=(m.lotes_vendidos!=null?m.lotes_vendidos:0);
   var leadsHoy=(DASH.leads_hoy!=null?DASH.leads_hoy:0);
-  var slaPct=(DASH.sla_pct!=null?Math.round(DASH.sla_pct*100):null);
+  var cons=(HIST&&HIST.consolidado)||null;
+  var slaPct=(cons&&cons.pct_a_tiempo!=null)?cons.pct_a_tiempo:null;
+  var slaSub=cons?((cons.verde||0)+' de '+(cons.atendidos||0)+' atendidos (mes)'):'1ª respuesta ≤10 min';
   var cola=DASH.cola||[];var now=Date.now();
   var mas30=cola.filter(function(c){var t=tISO(c.entrada||c.created_at);return t&&(now-t)/60000>30;}).length;
   var k=[
     ['warn','Clientes del mes',lotes,'de '+META_LOTES+' meta',pctv(lotes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-lotes)],
     ['warn','Leads hoy',leadsHoy,'meta '+META_LEADS_DIA+'/día',pctv(leadsHoy,META_LEADS_DIA)+'% de la meta diaria'],
-    [(slaPct!=null&&slaPct>=70?'ok':'warn'),'Atención a tiempo',(slaPct!=null?slaPct:'—'),(slaPct!=null?'%':''),'1ª respuesta ≤10 min'],
+    [(slaPct!=null&&slaPct>=70?'ok':'warn'),'Atención a tiempo',(slaPct!=null?slaPct:'—'),(slaPct!=null?'%':''),slaSub],
     [(cola.length?'bad':'ok'),'Leads sin atender',cola.length,'ahora',mas30+' con más de 30 min']
   ];
   document.getElementById('dashKpis').innerHTML=k.map(function(x){return '<div class="card kpi '+x[0]+'"><div class="lbl">'+x[1]+'</div><div class="num">'+x[2]+' <small>'+x[3]+'</small></div><div class="s">'+x[4]+'</div></div>';}).join('');
-  // embudo
-  var et=(DASH.embudo||DASH.etapas||[]).map(function(e){return {nombre:e.nombre||e.name||'',count:(e.cantidad!=null?e.cantidad:(e.count||0))};});
-  var base=et.length?et[0].count:0;
-  document.getElementById('embudo').innerHTML=et.map(function(e,i){var p=base?Math.round(e.count/base*100):0;var meta=embMeta(e.nombre);var ok=meta==null?null:(e.count/(base||1))>=meta;var col=i===0?'var(--accent)':(ok===false?'var(--bad)':ok===true?'var(--ok)':'var(--accent-300)');
-    return '<div class="erow"><div class="t"><span class="dd"><span class="sq" style="background:'+col+'"></span>'+esc(e.nombre)+'</span><span class="nt">'+p+'%'+(meta!=null?' · meta '+Math.round(meta*100)+'%':'')+'</span></div><div style="display:flex;align-items:center;gap:8px"><div class="rail '+(i===0?'base':'')+'" style="flex:1"><div class="fill" style="width:'+p+'%;background:'+col+'"></div></div><span class="v">'+e.count+'</span></div></div>';}).join('');
-  document.getElementById('embFoot').innerHTML='Agendar/Meet es saludable con <b>'+Math.round(META_AGENDA*100)+'% o más</b>.';
+  // embudo (modelo de ALCANCE desde los leads del mes; base = total, evita el 0% del snapshot)
+  if(!HIST||!HIST.filas){document.getElementById('embudo').innerHTML='<div class="loading">Cargando embudo…</div>';}
+  else{
+    var F=HIST.filas,total=F.length;
+    function idxOf(nm){if(nm==='Contactado')return 1;if(nm==='Agenda')return 2;if(nm==='Meet')return 3;if(nm==='Separación')return 4;if(nm==='Venta concretada')return 5;return 0;}
+    var reach=[total,0,0,0,0,0],noResp=0,perd=0,firm=0;
+    F.forEach(function(x){var nm=x.etapa_actual||'';if(nm==='No responde')noResp++;else if(nm==='Venta Perdido'||nm==='143'||nm==='Perdido')perd++;if(nm==='Venta concretada')firm++;var kk=idxOf(nm);for(var j=1;j<=kk;j++)reach[j]++;});
+    var rows=[['Leads del mes',total,null],['Contactado',reach[1],0.80],['Meet agendado',reach[2],META_AGENDA],['Presentado',reach[3],0.70],['Cliente',reach[5],0.20]];
+    document.getElementById('embudo').innerHTML=rows.map(function(r,i){var cnt=r[1],p=total?Math.round(cnt/total*100):0,meta=r[2],ok=meta==null?null:(cnt/(total||1))>=meta;var col=i===0?'var(--accent)':(ok===false?'var(--bad)':ok===true?'var(--ok)':'var(--accent-300)');
+      return '<div class="erow"><div class="t"><span class="dd"><span class="sq" style="background:'+col+'"></span>'+r[0]+'</span><span class="nt">'+p+'%'+(meta!=null?' · meta '+Math.round(meta*100)+'%':'')+'</span></div><div style="display:flex;align-items:center;gap:8px"><div class="rail '+(i===0?'base':'')+'" style="flex:1"><div class="fill" style="width:'+p+'%;background:'+col+'"></div></div><span class="v">'+cnt+'</span></div></div>';}).join('')
+      +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div><div class="lbl" style="font-size:10px">No responde</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--warn)">'+noResp+'</div></div><div><div class="lbl" style="font-size:10px">Contratos firmados</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--ok)">'+firm+'</div></div><div><div class="lbl" style="font-size:10px">Perdidos</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--bad)">'+perd+'</div></div></div>';
+  }
+  document.getElementById('embFoot').innerHTML='Embudo de los <b>'+((HIST&&HIST.filas)?HIST.filas.length:0)+'</b> leads del mes · Meet agendado saludable con <b>'+Math.round(META_AGENDA*100)+'% o más</b>.';
   // desempeño
   var as=(DASH.por_asesor||[]).map(function(a){return {nombre:a.asesor||a.nombre||a.name||'',cv:(a.conversion_pct!=null?a.conversion_pct:0),sem:a.semaforo||'rojo'};}).sort(function(a,b){return b.cv-a.cv;});
   var maxcv=Math.max.apply(null,as.map(function(a){return a.cv;}).concat([1]));
@@ -526,6 +535,6 @@ seg('hrPer',function(d){hrPer=d.p;renderHoras();});
 (function(){var oh='<option value="">--</option>';for(var h=0;h<24;h++)oh+='<option value="'+h+'">'+(h<10?'0'+h:h)+':00</option>';var a=document.getElementById('hHoraD'),b=document.getElementById('hHoraH');if(a)a.innerHTML=oh;if(b)b.innerHTML=oh;})();
 badge('load');
 loadDash();
-loadHist(function(){renderCitasHoy();});
+loadHist(function(){if(DASH)renderDash();else renderCitasHoy();});
 setInterval(function(){var el=document.getElementById('actlbl');if(el)el.textContent='act. '+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});},1000);
 </script>
