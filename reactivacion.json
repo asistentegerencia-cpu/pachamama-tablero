@@ -1,5 +1,5 @@
 {
- "generado": "2026-09-15T16:41:44",
+ "generado": "2026-09-15T17:10:40",
  "fuente": "Difusiones_Kommo_detalle_14sep2026.xlsx",
  "difusiones": [
   {
@@ -32,7 +32,8 @@
     "Alexander Alcalde": 10,
     "Jhon Pullo": 63,
     "Fátima Abad": 9
-   }
+   },
+   "resp_etapas": {}
   },
   {
    "id": 10983,
@@ -64,6 +65,9 @@
     "Alexander Alcalde": 11,
     "Fátima Abad": 5,
     "Esteban Reategui": 7
+   },
+   "resp_etapas": {
+    "Contactado": 3
    }
   },
   {
@@ -96,6 +100,11 @@
     "Alexander Alcalde": 10,
     "Jhon Pullo": 63,
     "Fátima Abad": 9
+   },
+   "resp_etapas": {
+    "Venta Perdido": 3,
+    "Contactado": 1,
+    "No responde": 2
    }
   },
   {
@@ -128,6 +137,11 @@
     "Fátima Abad": 21,
     "Brunella Sanchez": 34,
     "Jhon Pullo": 1
+   },
+   "resp_etapas": {
+    "No responde": 2,
+    "Contactado": 2,
+    "Agenda": 1
    }
   },
   {
@@ -160,6 +174,11 @@
     "Brunella Sanchez": 51,
     "Fátima Abad": 3,
     "Jhon Pullo": 47
+   },
+   "resp_etapas": {
+    "Venta Perdido": 2,
+    "Contactado": 3,
+    "No responde": 2
    }
   },
   {
@@ -192,6 +211,9 @@
     "Alexander Alcalde": 11,
     "Fátima Abad": 5,
     "Esteban Reategui": 7
+   },
+   "resp_etapas": {
+    "No responde": 2
    }
   },
   {
@@ -225,6 +247,10 @@
     "Fátima Abad": 24,
     "Brunella Sanchez": 37,
     "Jhon Pullo": 1
+   },
+   "resp_etapas": {
+    "Venta Perdido": 1,
+    "No responde": 5
    }
   },
   {
@@ -258,6 +284,11 @@
     "Fátima Abad": 26,
     "Brunella Sanchez": 38,
     "Jhon Pullo": 1
+   },
+   "resp_etapas": {
+    "No responde": 6,
+    "Contactado": 1,
+    "Venta Perdido": 2
    }
   },
   {
@@ -291,6 +322,11 @@
     "Alexander Alcalde": 21,
     "Jhon Pullo": 43,
     "Fátima Abad": 1
+   },
+   "resp_etapas": {
+    "No responde": 1,
+    "Contactado": 2,
+    "Venta Perdido": 1
    }
   },
   {
@@ -324,6 +360,11 @@
     "Alexander Alcalde": 18,
     "Jhon Pullo": 39,
     "Fátima Abad": 1
+   },
+   "resp_etapas": {
+    "No responde": 2,
+    "Contactado": 2,
+    "Venta Perdido": 1
    }
   },
   {
@@ -357,6 +398,10 @@
     "Alexander Alcalde": 19,
     "Jhon Pullo": 38,
     "Fátima Abad": 2
+   },
+   "resp_etapas": {
+    "No responde": 2,
+    "Venta Perdido": 5
    }
   },
   {
@@ -379,7 +424,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": 10607,
@@ -405,6 +451,9 @@
    },
    "responsables": {
     "Brunella Sanchez": 1
+   },
+   "resp_etapas": {
+    "Agenda": 1
    }
   },
   {
@@ -427,7 +476,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": 10503,
@@ -449,7 +499,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": 10501,
@@ -475,6 +526,9 @@
    },
    "responsables": {
     "Jhon Pullo": 1
+   },
+   "resp_etapas": {
+    "No responde": 1
    }
   },
   {
@@ -501,6 +555,9 @@
    },
    "responsables": {
     "Brunella Sanchez": 1
+   },
+   "resp_etapas": {
+    "Agenda": 1
    }
   },
   {
@@ -531,7 +588,8 @@
     "Alexander Alcalde": 2,
     "Esteban Reategui": 8,
     "Brunella Sanchez": 1
-   }
+   },
+   "resp_etapas": {}
   },
   {
    "id": 10307,
@@ -559,7 +617,8 @@
    "responsables": {
     "Esteban Reategui": 5,
     "Brunella Sanchez": 2
-   }
+   },
+   "resp_etapas": {}
   },
   {
    "id": 10305,
@@ -586,7 +645,8 @@
    "responsables": {
     "Brunella Sanchez": 5,
     "Esteban Reategui": 1
-   }
+   },
+   "resp_etapas": {}
   },
   {
    "id": 10257,
@@ -615,6 +675,9 @@
     "Esteban Reategui": 4,
     "Alexander Alcalde": 3,
     "Brunella Sanchez": 1
+   },
+   "resp_etapas": {
+    "No responde": 1
    }
   },
   {
@@ -648,6 +711,10 @@
     "Alexander Alcalde": 66,
     "Fátima Abad": 4,
     "Jhon Pullo": 2
+   },
+   "resp_etapas": {
+    "No responde": 7,
+    "Venta Perdido": 1
    }
   },
   {
@@ -678,6 +745,9 @@
     "Esteban Reategui": 9,
     "Brunella Sanchez": 1,
     "Fátima Abad": 1
+   },
+   "resp_etapas": {
+    "No responde": 1
    }
   },
   {
@@ -709,6 +779,11 @@
     "Brunella Sanchez": 50,
     "Fátima Abad": 51,
     "Jhon Pullo": 49
+   },
+   "resp_etapas": {
+    "Descartado": 5,
+    "Respondió": 4,
+    "Contactado": 1
    }
   },
   {
@@ -739,6 +814,10 @@
     "Brunella Sanchez": 49,
     "Fátima Abad": 50,
     "Jhon Pullo": 51
+   },
+   "resp_etapas": {
+    "Respondió": 4,
+    "Descartado": 3
    }
   },
   {
@@ -773,6 +852,12 @@
     "Fátima Abad": 3,
     "Esteban Reategui": 8,
     "Jhon Pullo": 3
+   },
+   "resp_etapas": {
+    "No responde": 4,
+    "Agenda": 1,
+    "Venta Perdido": 1,
+    "Meet": 1
    }
   },
   {
@@ -804,6 +889,9 @@
     "Brunella Sanchez": 15,
     "Esteban Reategui": 3,
     "Fátima Abad": 1
+   },
+   "resp_etapas": {
+    "No responde": 4
    }
   },
   {
@@ -836,6 +924,10 @@
     "Brunella Sanchez": 29,
     "Esteban Reategui": 30,
     "Fátima Abad": 32
+   },
+   "resp_etapas": {
+    "Respondió": 3,
+    "Descartado": 4
    }
   },
   {
@@ -862,7 +954,8 @@
    },
    "responsables": {
     "Brunella Sanchez": 1
-   }
+   },
+   "resp_etapas": {}
   },
   {
    "id": "Notas",
@@ -884,7 +977,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• \"Total mensajes\" puede ser mayor que \"Leads\": Kommo manda un mensaje por cada contacto/teléfono del lead.",
@@ -906,7 +1000,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• Costo estimado: el que informa Kommo. \"Costo por respuesta\" = costo ÷ respondidos (solo si hubo respuestas).",
@@ -928,7 +1023,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• \"Destinatarios en Detalle\" cuenta las filas de la hoja Detalle mensajes; debería coincidir con Total mensajes.",
@@ -950,7 +1046,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• \"Respondido\" es el que registra Kommo en la difusión; las respuestas reales pueden ser más (campaña NR: 55 por etiqueta nr_respondio).",
@@ -972,7 +1069,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• Las plantillas marcadas \"eliminada\" ya no existen en Kommo; su nombre no se puede recuperar por API.",
@@ -994,7 +1092,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• Enviado, Entregado y Leído son acumulados (un mensaje leído también cuenta como entregado y enviado), igual que en Kommo.",
@@ -1016,7 +1115,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• En 8 difusiones el Detalle tiene menos filas que Total mensajes (p. ej. 01/09 de 142 leads: 169 mensajes, 149 filas). Kommo no devuelve los destinatarios cuyo lead se fusionó o eliminó después del envío.",
@@ -1038,7 +1138,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   },
   {
    "id": "• La hoja \"Estados por difusión\" muestra el estado ACTUAL de cada destinatario (no acumulado): Entregado = entregado y no leído.",
@@ -1060,7 +1161,8 @@
    "fallido": 0,
    "en_proceso": 0,
    "etapas": {},
-   "responsables": {}
+   "responsables": {},
+   "resp_etapas": {}
   }
  ],
  "estados_catalogo": [

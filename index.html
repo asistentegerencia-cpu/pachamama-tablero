@@ -265,6 +265,7 @@ table.t tr:hover td{background:var(--accent-100)}
           <div class="panel"><div class="phead"><h2>Embudo de mensajería</h2><span class="n">WhatsApp</span></div><div id="rFunnel"></div><div class="efoot" id="rFunnelFoot"></div></div>
           <div class="panel"><div class="phead"><h2>Embudo de seguimiento · CRM</h2><span class="n">en qué etapa quedaron</span></div><div id="rSeg"></div></div>
         </div>
+        <div class="panel" style="margin-bottom:12px;border-top:3px solid var(--ok)"><div class="phead"><h2>Cómo quedaron los que respondieron</h2><span class="n" id="rRespEtHead"></span></div><div id="rRespEtSum" class="note" style="margin:0 0 10px"></div><div id="rRespEt"></div><div class="efoot" id="rRespEtFoot"></div></div>
         <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Por responsable</h2><span class="n">destinatarios y respuestas</span></div><div id="rResp"></div></div>
         <div class="panel"><div class="phead"><h2>Difusiones</h2><span class="n">clic en una fila para verla sola</span></div><div class="tw" id="rTable"></div></div>
       </section>
@@ -564,12 +565,13 @@ function reactSel(){
   return arr;
 }
 function reactAgg(arr){
-  var t={dest:0,env:0,ent:0,leido:0,resp:0,fall:0,enp:0,costo:0,etapas:{},resp_b:{}};
+  var t={dest:0,env:0,ent:0,leido:0,resp:0,fall:0,enp:0,costo:0,etapas:{},resp_b:{},resp_et:{}};
   arr.forEach(function(d){
     t.dest+=d.destinatarios||0;t.ent+=d.entregado||0;t.leido+=d.leido||0;t.resp+=d.respondido||0;
     t.env+=d.enviado||0;t.fall+=d.fallido||0;t.enp+=d.en_proceso||0;t.costo+=d.costo||0;
     var e=d.etapas||{};for(var k in e)t.etapas[k]=(t.etapas[k]||0)+e[k];
     var rb=d.responsables||{};for(var k2 in rb)t.resp_b[k2]=(t.resp_b[k2]||0)+rb[k2];
+    var re=d.resp_etapas||{};for(var k3 in re)t.resp_et[k3]=(t.resp_et[k3]||0)+re[k3];
   });
   return t;
 }
@@ -609,6 +611,19 @@ function renderReact(){
   var maxE=Math.max.apply(null,keys.map(function(k){return et[k];}).concat([1]));
   document.getElementById('rSeg').innerHTML=keys.length?keys.map(function(k){var v=et[k]||0,col=segColor(k);
     return '<div class="drow"><span class="nm" title="'+esc(k)+'">'+esc(k)+'</span><div class="rail"><div class="fill" style="width:'+Math.round(v/maxE*100)+'%;background:'+col+'"></div></div><span class="pc mono">'+v+'</span><span class="sq" style="background:'+col+'"></span></div>';}).join(''):'<div class="note">Sin datos de etapas.</div>';
+  // cómo quedaron los que respondieron
+  var re=t.resp_et,rtot=0;for(var rk in re)rtot+=re[rk];
+  document.getElementById('rRespEtHead').textContent=rtot+' respondieron';
+  function sumEt(o,names){var s=0;names.forEach(function(n){for(var k in o){if(k.toLowerCase().indexOf(n)>=0)s+=o[k];}});return s;}
+  var cita=(re['Meet']||0)+(re['Agenda']||0);
+  var gestion=(re['Respondió']||0)+(re['Contactado']||0);
+  var frios=sumEt(re,['no responde','descart','perdid','por contactar']);
+  document.getElementById('rRespEtSum').innerHTML=rtot?('De los <b style="color:var(--ok)">'+rtot+'</b> que respondieron: <b>'+cita+'</b> llegaron a Meet/Agenda ('+pctR(cita,rtot)+'%) · <b>'+gestion+'</b> en gestión (contactado/respondió) · <b style="color:var(--bad)">'+frios+'</b> se enfriaron o se perdieron ('+pctR(frios,rtot)+'%).'):'Sin respuestas en este filtro.';
+  var reKeys=SEG_ORDER.filter(function(k){return re[k]!=null;});Object.keys(re).forEach(function(k){if(reKeys.indexOf(k)<0)reKeys.push(k);});
+  var maxRe=Math.max.apply(null,reKeys.map(function(k){return re[k];}).concat([1]));
+  document.getElementById('rRespEt').innerHTML=reKeys.length?reKeys.map(function(k){var v=re[k]||0,col=segColor(k);
+    return '<div class="drow"><span class="nm" title="'+esc(k)+'">'+esc(k)+'</span><div class="rail"><div class="fill" style="width:'+Math.round(v/maxRe*100)+'%;background:'+col+'"></div></div><span class="pc mono">'+v+'</span><span class="mono" style="width:44px;text-align:right;color:var(--muted);font-size:11px">'+pctR(v,rtot)+'%</span><span class="sq" style="background:'+col+'"></span></div>';}).join(''):'<div class="note">Sin datos.</div>';
+  document.getElementById('rRespEtFoot').innerHTML='Etapa actual en el CRM de quienes contestaron la difusión. <b>Falta el dato de atención ≤10 min</b> (requiere cruzar con el CRM).';
   // por responsable
   var rb=t.resp_b,rks=Object.keys(rb).sort(function(a,b){return rb[b]-rb[a];});
   var maxR=Math.max.apply(null,rks.map(function(k){return rb[k];}).concat([1]));
