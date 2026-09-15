@@ -1,5 +1,5 @@
 {
- "generado": "2026-09-15T17:10:40",
+ "generado": "2026-09-15T17:31:35",
  "fuente": "Difusiones_Kommo_detalle_14sep2026.xlsx",
  "difusiones": [
   {
@@ -33,7 +33,8 @@
     "Jhon Pullo": 63,
     "Fátima Abad": 9
    },
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10983,
@@ -68,7 +69,12 @@
    },
    "resp_etapas": {
     "Contactado": 3
-   }
+   },
+   "resp_leads": [
+    12484785,
+    15242793,
+    15503687
+   ]
   },
   {
    "id": 10985,
@@ -105,7 +111,15 @@
     "Venta Perdido": 3,
     "Contactado": 1,
     "No responde": 2
-   }
+   },
+   "resp_leads": [
+    21076039,
+    21159273,
+    21212773,
+    21412421,
+    21423083,
+    21711053
+   ]
   },
   {
    "id": 10977,
@@ -142,7 +156,14 @@
     "No responde": 2,
     "Contactado": 2,
     "Agenda": 1
-   }
+   },
+   "resp_leads": [
+    15952045,
+    16788137,
+    19132261,
+    19684967,
+    20617543
+   ]
   },
   {
    "id": 10975,
@@ -179,7 +200,16 @@
     "Venta Perdido": 2,
     "Contactado": 3,
     "No responde": 2
-   }
+   },
+   "resp_leads": [
+    21101455,
+    21133595,
+    21207067,
+    21214345,
+    21215157,
+    21216377,
+    21257283
+   ]
   },
   {
    "id": 10939,
@@ -214,7 +244,11 @@
    },
    "resp_etapas": {
     "No responde": 2
-   }
+   },
+   "resp_leads": [
+    5812577,
+    20868383
+   ]
   },
   {
    "id": 10941,
@@ -251,7 +285,15 @@
    "resp_etapas": {
     "Venta Perdido": 1,
     "No responde": 5
-   }
+   },
+   "resp_leads": [
+    16727361,
+    19241261,
+    19930725,
+    20514595,
+    20540023,
+    20611357
+   ]
   },
   {
    "id": 10775,
@@ -289,7 +331,18 @@
     "No responde": 6,
     "Contactado": 1,
     "Venta Perdido": 2
-   }
+   },
+   "resp_leads": [
+    19046694,
+    19202913,
+    19241261,
+    19673663,
+    20471597,
+    20639259,
+    20657051,
+    21043577,
+    21054051
+   ]
   },
   {
    "id": 10695,
@@ -327,7 +380,13 @@
     "No responde": 1,
     "Contactado": 2,
     "Venta Perdido": 1
-   }
+   },
+   "resp_leads": [
+    20868383,
+    21009755,
+    21051865,
+    21102717
+   ]
   },
   {
    "id": 10661,
@@ -365,7 +424,14 @@
     "No responde": 2,
     "Contactado": 2,
     "Venta Perdido": 1
-   }
+   },
+   "resp_leads": [
+    20868383,
+    21013729,
+    21076039,
+    21086089,
+    21178551
+   ]
   },
   {
    "id": 10615,
@@ -402,7 +468,16 @@
    "resp_etapas": {
     "No responde": 2,
     "Venta Perdido": 5
-   }
+   },
+   "resp_leads": [
+    20868383,
+    20944597,
+    21000021,
+    21000035,
+    21001277,
+    21002735,
+    21214345
+   ]
   },
   {
    "id": 10609,
@@ -425,7 +500,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10607,
@@ -454,7 +530,10 @@
    },
    "resp_etapas": {
     "Agenda": 1
-   }
+   },
+   "resp_leads": [
+    16648843
+   ]
   },
   {
    "id": 10525,
@@ -477,7 +556,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10503,
@@ -500,7 +580,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10501,
@@ -529,7 +610,10 @@
    },
    "resp_etapas": {
     "No responde": 1
-   }
+   },
+   "resp_leads": [
+    21171189
+   ]
   },
   {
    "id": 10441,
@@ -558,7 +642,10 @@
    },
    "resp_etapas": {
     "Agenda": 1
-   }
+   },
+   "resp_leads": [
+    16648843
+   ]
   },
   {
    "id": 10439,
@@ -589,7 +676,8 @@
     "Esteban Reategui": 8,
     "Brunella Sanchez": 1
    },
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10307,
@@ -618,7 +706,8 @@
     "Esteban Reategui": 5,
     "Brunella Sanchez": 2
    },
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10305,
@@ -646,7 +735,8 @@
     "Brunella Sanchez": 5,
     "Esteban Reategui": 1
    },
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": 10257,
@@ -678,7 +768,10 @@
    },
    "resp_etapas": {
     "No responde": 1
-   }
+   },
+   "resp_leads": [
+    20856211
+   ]
   },
   {
    "id": 10255,
@@ -715,7 +808,17 @@
    "resp_etapas": {
     "No responde": 7,
     "Venta Perdido": 1
-   }
+   },
+   "resp_leads": [
+    19241261,
+    19648803,
+    19911549,
+    19956230,
+    19989697,
+    20318051,
+    20603043,
+    20868383
+   ]
   },
   {
    "id": 10203,
@@ -748,7 +851,10 @@
    },
    "resp_etapas": {
     "No responde": 1
-   }
+   },
+   "resp_leads": [
+    20664055
+   ]
   },
   {
    "id": 10059,
@@ -784,7 +890,19 @@
     "Descartado": 5,
     "Respondió": 4,
     "Contactado": 1
-   }
+   },
+   "resp_leads": [
+    20581689,
+    20582011,
+    20582191,
+    20582295,
+    20582315,
+    20582363,
+    20582501,
+    20582527,
+    20582559,
+    20582691
+   ]
   },
   {
    "id": 10057,
@@ -818,7 +936,16 @@
    "resp_etapas": {
     "Respondió": 4,
     "Descartado": 3
-   }
+   },
+   "resp_leads": [
+    20581803,
+    20582089,
+    20582415,
+    20582529,
+    20582555,
+    20582623,
+    20582655
+   ]
   },
   {
    "id": 10055,
@@ -858,7 +985,16 @@
     "Agenda": 1,
     "Venta Perdido": 1,
     "Meet": 1
-   }
+   },
+   "resp_leads": [
+    19241261,
+    19648859,
+    20427175,
+    20458825,
+    20471597,
+    20593869,
+    20601963
+   ]
   },
   {
    "id": 10053,
@@ -892,7 +1028,13 @@
    },
    "resp_etapas": {
     "No responde": 4
-   }
+   },
+   "resp_leads": [
+    19950250,
+    20322403,
+    20471909,
+    20587239
+   ]
   },
   {
    "id": 10037,
@@ -928,7 +1070,16 @@
    "resp_etapas": {
     "Respondió": 3,
     "Descartado": 4
-   }
+   },
+   "resp_leads": [
+    20581303,
+    20581309,
+    20581335,
+    20581383,
+    20581529,
+    20581535,
+    20581595
+   ]
   },
   {
    "id": 10035,
@@ -955,7 +1106,8 @@
    "responsables": {
     "Brunella Sanchez": 1
    },
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "Notas",
@@ -978,7 +1130,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• \"Total mensajes\" puede ser mayor que \"Leads\": Kommo manda un mensaje por cada contacto/teléfono del lead.",
@@ -1001,7 +1154,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• Costo estimado: el que informa Kommo. \"Costo por respuesta\" = costo ÷ respondidos (solo si hubo respuestas).",
@@ -1024,7 +1178,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• \"Destinatarios en Detalle\" cuenta las filas de la hoja Detalle mensajes; debería coincidir con Total mensajes.",
@@ -1047,7 +1202,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• \"Respondido\" es el que registra Kommo en la difusión; las respuestas reales pueden ser más (campaña NR: 55 por etiqueta nr_respondio).",
@@ -1070,7 +1226,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• Las plantillas marcadas \"eliminada\" ya no existen en Kommo; su nombre no se puede recuperar por API.",
@@ -1093,7 +1250,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• Enviado, Entregado y Leído son acumulados (un mensaje leído también cuenta como entregado y enviado), igual que en Kommo.",
@@ -1116,7 +1274,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• En 8 difusiones el Detalle tiene menos filas que Total mensajes (p. ej. 01/09 de 142 leads: 169 mensajes, 149 filas). Kommo no devuelve los destinatarios cuyo lead se fusionó o eliminó después del envío.",
@@ -1139,7 +1298,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   },
   {
    "id": "• La hoja \"Estados por difusión\" muestra el estado ACTUAL de cada destinatario (no acumulado): Entregado = entregado y no leído.",
@@ -1162,7 +1322,8 @@
    "en_proceso": 0,
    "etapas": {},
    "responsables": {},
-   "resp_etapas": {}
+   "resp_etapas": {},
+   "resp_leads": []
   }
  ],
  "estados_catalogo": [

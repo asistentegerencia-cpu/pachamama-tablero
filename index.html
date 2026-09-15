@@ -266,6 +266,7 @@ table.t tr:hover td{background:var(--accent-100)}
           <div class="panel"><div class="phead"><h2>Embudo de seguimiento · CRM</h2><span class="n">en qué etapa quedaron</span></div><div id="rSeg"></div></div>
         </div>
         <div class="panel" style="margin-bottom:12px;border-top:3px solid var(--ok)"><div class="phead"><h2>Cómo quedaron los que respondieron</h2><span class="n" id="rRespEtHead"></span></div><div id="rRespEtSum" class="note" style="margin:0 0 10px"></div><div id="rRespEt"></div><div class="efoot" id="rRespEtFoot"></div></div>
+        <div class="panel" style="margin-bottom:12px;border-top:3px solid var(--accent)"><div class="phead"><h2>Atención de los que respondieron</h2><span class="n">¿se contactó en ≤10 min? · en vivo desde Kommo</span></div><div id="rAtn"></div></div>
         <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Por responsable</h2><span class="n">destinatarios y respuestas</span></div><div id="rResp"></div></div>
         <div class="panel"><div class="phead"><h2>Difusiones</h2><span class="n">clic en una fila para verla sola</span></div><div class="tw" id="rTable"></div></div>
       </section>
@@ -284,7 +285,7 @@ table.t tr:hover td{background:var(--accent-100)}
   window.fetch=function(input,init){var url=(typeof input==="string")?input:((input&&input.url)||"");if(url.indexOf(BACKEND)===-1)return _f(input,init);init=init||{};var h=new Headers(init.headers||{});h.set("X-API-Key",clave());init.headers=h;return _f(input,init).then(function(r){if(r.status===401){try{localStorage.removeItem(STORE);}catch(e){}alert("Clave incorrecta o vencida. Recarga e ingrésala de nuevo.");}return r;});};
 })();
 var B="https://pachamama-backend-v0v0.onrender.com";
-var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config"};
+var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config",atn:B+"/api/reactivacion/atencion"};
 var META_LOTES=60,META_LEADS_DIA=30,SLA_V=10,SLA_R=30,META_AGENDA=0.90;
 var DASH=null,HIST=null,REASIG={},USERS=null,REP=null,ACT={},actDias="hoy",actKey="dias=hoy",view="dash";
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -631,6 +632,8 @@ function renderReact(){
     return '<div class="drow"><span class="nm" title="'+esc(k)+'">'+esc(k.split(' ')[0])+'</span><div class="rail"><div class="fill" style="width:'+Math.round(v/maxR*100)+'%"></div></div><span class="pc mono">'+v+'</span></div>';}).join(''):'<div class="note">Sin datos.</div>';
   // gráfico enviados por día
   renderReactChart(arr);
+  // atención (≤10 min) de los que respondieron — en vivo desde el CRM
+  renderAtencion(arr);
   // tabla difusiones
   var sorted=arr.slice().sort(function(a,b){return (Date.parse(b.fecha)||0)-(Date.parse(a.fecha)||0);});
   document.getElementById('rTable').innerHTML='<table class="t" style="min-width:760px"><thead><tr><th>Fecha</th><th>Difusión</th><th style="text-align:right">Dest.</th><th style="text-align:right">Entreg.</th><th style="text-align:right">Leídos</th><th style="text-align:right">Resp.</th><th style="text-align:right">% Resp</th><th style="text-align:right">Costo</th></tr></thead><tbody>'+
@@ -661,6 +664,54 @@ function renderReactChart(arr){
   });
   svg+='</svg>';
   el.innerHTML=svg;
+}
+
+/* ===== atención de respondedores (vía API Kommo) ===== */
+var RATN={}; // cache: firma de ids -> data
+function idsDe(arr){var s={};arr.forEach(function(d){(d.resp_leads||[]).forEach(function(id){s[id]=1;});});return Object.keys(s);}
+function renderAtencion(arr){
+  var el=document.getElementById('rAtn');if(!el)return;
+  var ids=idsDe(arr);
+  if(!ids.length){el.innerHTML='<div class="note">Nadie respondió en esta selección, no hay atención que medir.</div>';return;}
+  var sig=ids.slice().sort().join(',');
+  if(RATN[sig]){paintAtencion(RATN[sig],arr);return;}
+  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn" onclick="fetchAtencion()">Calcular atención ≤10 min de los '+ids.length+' que respondieron</button><span class="note" style="margin:0">Consulta en vivo a Kommo · puede tardar ~30 s</span></div>';
+  el.dataset.sig=sig;
+}
+function fetchAtencion(){
+  var arr=reactSel(),ids=idsDe(arr),sig=ids.slice().sort().join(',');
+  var el=document.getElementById('rAtn');if(!el)return;
+  el.innerHTML='<div class="loading">Consultando Kommo la atención de '+ids.length+' leads… (puede tardar ~30 s)</div>';
+  fetch(EP.atn,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids:ids,dias:120})})
+    .then(function(r){if(!r.ok)throw 0;return r.json();})
+    .then(function(j){RATN[sig]=j;if(idsDe(reactSel()).slice().sort().join(',')===sig)paintAtencion(j,arr);})
+    .catch(function(){el.innerHTML='<div class="empty" style="padding:20px">No se pudo calcular la atención. <button class="btn2" style="padding:6px 10px" onclick="fetchAtencion()">Reintentar</button></div>';});
+}
+window.fetchAtencion=fetchAtencion;
+var ETAPA_MAP={'110983964':'Contactado (Evolta)','110983968':'Respondió (Evolta)','110983976':'Descartado (Evolta)','110983960':'Por contactar (Evolta)','110983972':'No responde (Evolta)'};
+function etapaNom(e){return ETAPA_MAP[String(e)]||e;}
+function paintAtencion(j,arr){
+  var el=document.getElementById('rAtn');if(!el)return;
+  // mapa lead -> difusión (para la columna)
+  var difDe={};arr.forEach(function(d){(d.resp_leads||[]).forEach(function(id){difDe[String(id)]=d.nombre||('Dif '+d.id);});});
+  var filas=j.filas||[];
+  var sla=j.atendidos_en_sla||0, atend=j.atendidos||0, conHora=j.con_hora_respuesta||0, total=j.total||filas.length;
+  var kpis=[
+    ['ok','Contactados ≤10 min',sla,conHora?(pctR(sla,conHora)+'% de los que tienen registro'):'—'],
+    ['acc','Atendidos (total)',atend,'tienen atención registrada'],
+    ['warn','Con hora de respuesta',conHora,'de '+total+' que respondieron'],
+    ['bad','Sin registro en CRM',total-conHora,'respondieron pero sin rastro de tarea']
+  ];
+  var kh='<div class="grid kpis" style="margin-bottom:12px">'+kpis.map(function(x){return '<div class="card kpi '+x[0]+'"><div class="lbl">'+x[1]+'</div><div class="num">'+x[2]+'</div><div class="s">'+x[3]+'</div></div>';}).join('')+'</div>';
+  var rows=filas.map(function(f){
+    var col=f.semaforo?bandColor(f.semaforo==='gris'?'gris':f.semaforo):'var(--line)';
+    var tmin=f.atencion_min!=null?(f.atencion_min+' min'):(f.respondio_ts?'sin atender':'—');
+    var cuando=f.respondio_ts?new Date(f.respondio_ts*1000).toLocaleString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'—';
+    return '<tr><td class="mono">'+cuando+'</td><td class="main">'+esc(f.nombre)+'</td><td>'+esc(difDe[String(f.id)]||'—')+'</td><td><span class="sdot"><span class="d" style="background:'+col+'"></span>'+tmin+'</span></td><td>'+esc(etapaNom(f.etapa))+'</td><td>'+esc((f.asesor||'—').split(' ')[0])+'</td></tr>';
+  }).join('');
+  var tabla='<div class="tw"><table class="t" style="min-width:720px"><thead><tr><th>Respondió</th><th>Lead</th><th>Difusión</th><th>Atención</th><th>Etapa</th><th>Asesor</th></tr></thead><tbody>'+(rows||'<tr><td colspan="6" class="loading">Sin datos.</td></tr>')+'</tbody></table></div>';
+  var foot='<div class="note">🟢 ≤10 min · 🟡 10–30 · 🔴 +30 · ⚪ respondió pero aún sin atender. Atención = minutos desde que se generó la tarea de respuesta hasta completarla (dato de Kommo). <button class="btn2" style="padding:4px 8px;margin-left:6px" onclick="delete RATN[this.dataset.s];fetchAtencion()" data-s="'+idsDe(arr).slice().sort().join(',')+'">Actualizar</button></div>';
+  el.innerHTML=kh+tabla+foot;
 }
 
 /* ===== HORAS ===== */
