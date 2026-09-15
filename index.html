@@ -251,9 +251,22 @@ table.t tr:hover td{background:var(--accent-100)}
       </section>
 
       <section class="view" id="v-react">
-        <div class="panel"><div class="phead"><h2>Reactivación · difusiones</h2><span class="n">Fase 4</span></div>
-          <div class="empty" style="padding:34px">Esta pestaña se reconstruye en torno a tus <b>difusiones de WhatsApp</b>.<br>Está lista para conectarse cuando me pases los datos de las difusiones (enviados, entregados, leídos, fallidos, costo).<br><br>Incluirá: selector de difusión · gráfico de envíos por día · embudo de seguimiento · consolidado · quién respondió y en cuánto se atendió.</div>
+        <div class="filt">
+          <span class="flbl">Difusión</span>
+          <select id="rDif" onchange="onReactDif()"><option value="__all">Todas · consolidado</option></select>
+          <span class="flbl">Fecha</span>
+          <span class="seg" id="rPer"><button data-p="" class="on">Todo</button><button data-p="30">30 días</button><button data-p="7">7 días</button><button data-p="custom">Rango…</button></span>
+          <span id="rCustom" hidden style="display:inline-flex;gap:6px;align-items:center"><input type="date" id="rDesde" onchange="renderReact()"><span style="color:var(--muted)">→</span><input type="date" id="rHasta" onchange="renderReact()"></span>
+          <span class="count mono" id="rCount"></span>
         </div>
+        <div class="grid kpis" id="rKpis" style="margin-bottom:12px"></div>
+        <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Enviados por día</h2><span class="n">pasa el cursor por cada barra</span></div><div class="tw" id="rChart"></div></div>
+        <div class="grid two" style="margin-bottom:12px">
+          <div class="panel"><div class="phead"><h2>Embudo de mensajería</h2><span class="n">WhatsApp</span></div><div id="rFunnel"></div><div class="efoot" id="rFunnelFoot"></div></div>
+          <div class="panel"><div class="phead"><h2>Embudo de seguimiento · CRM</h2><span class="n">en qué etapa quedaron</span></div><div id="rSeg"></div></div>
+        </div>
+        <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Por responsable</h2><span class="n">destinatarios y respuestas</span></div><div id="rResp"></div></div>
+        <div class="panel"><div class="phead"><h2>Difusiones</h2><span class="n">clic en una fila para verla sola</span></div><div class="tw" id="rTable"></div></div>
       </section>
     </div>
   </main>
@@ -292,6 +305,7 @@ function lazy(v){
   if(v==='horas'){loadHrtab(function(){renderHoras();});return;}
   if(v==='citas'){loadCtab(function(){renderCitas();});return;}
   if(v==='dash'){if(!HIST){loadHist(function(){renderDash();});}else{renderDash();}return;}
+  if(v==='react'){loadReact(function(){renderReact();});return;}
   if(v==='equipo'){loadActividad();loadReparto();}
 }
 
@@ -512,6 +526,127 @@ function renderCitas(){
   document.getElementById('sinCita').innerHTML=sinc.length?('<table class="t"><tbody>'+sinc.slice(0,50).map(function(f){return '<tr><td class="main">'+esc(f.nombre)+'</td><td>'+esc(f.asesor_final||'—')+'</td></tr>';}).join('')+'</tbody></table>'):'<div class="note">Nadie en Agenda sin cita. 👌</div>';
 }
 window.renderCitas=renderCitas;
+
+/* ===== REACTIVACIÓN (difusiones) ===== */
+var RJSON=null,rF={dif:'__all',per:''};
+function loadReact(cb){
+  if(RJSON){cb&&cb();return;}
+  var k=document.getElementById('rKpis');if(k)k.innerHTML='<div class="loading">Cargando difusiones…</div>';
+  fetch('reactivacion.json',{cache:'no-store'}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
+    RJSON=j;fillReactSel();cb&&cb();
+  }).catch(function(){
+    if(k)k.innerHTML='<div class="empty" style="padding:26px">No se encontró <b>reactivacion.json</b> en el repositorio.<br>Sube el archivo de difusiones para activar esta pestaña.</div>';
+  });
+}
+function fillReactSel(){
+  var s=document.getElementById('rDif');if(!s||!RJSON)return;
+  var opts='<option value="__all">Todas · consolidado</option>';
+  RJSON.difusiones.forEach(function(d){opts+='<option value="'+d.id+'">'+esc(fechaCorta(d.fecha)+' · '+(d.nombre||('Difusión '+d.id)))+'</option>';});
+  s.innerHTML=opts;s.value=rF.dif;
+  var sg=document.getElementById('rPer');if(sg&&!sg.dataset.wired){sg.dataset.wired='1';sg.querySelectorAll('button').forEach(function(b){b.onclick=function(){sg.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');rF.per=b.dataset.p;document.getElementById('rCustom').hidden=(b.dataset.p!=='custom');renderReact();};});}
+}
+function fechaCorta(iso){if(!iso)return 's/f';var d=new Date(iso);if(isNaN(d))return 's/f';return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2);}
+function onReactDif(){rF.dif=document.getElementById('rDif').value;renderReact();}
+window.onReactDif=onReactDif;
+function reactRange(){
+  var nowS=Math.floor(Date.now()/1000),p=rF.per;
+  if(p==='30')return {desde:nowS-30*86400,hasta:nowS};
+  if(p==='7')return {desde:nowS-7*86400,hasta:nowS};
+  if(p==='custom'){var vd=(document.getElementById('rDesde')||{}).value,vh=(document.getElementById('rHasta')||{}).value;return {desde:vd?Math.floor(new Date(vd+'T00:00:00').getTime()/1000):0,hasta:vh?Math.floor(new Date(vh+'T23:59:59').getTime()/1000):nowS};}
+  return null; // Todo
+}
+function reactSel(){
+  if(!RJSON)return [];
+  var arr=RJSON.difusiones.slice();
+  if(rF.dif!=='__all')return arr.filter(function(d){return String(d.id)===String(rF.dif);});
+  var r=reactRange();
+  if(r)arr=arr.filter(function(d){var t=d.fecha?Math.floor(Date.parse(d.fecha)/1000):0;return t>=r.desde&&t<=r.hasta;});
+  return arr;
+}
+function reactAgg(arr){
+  var t={dest:0,env:0,ent:0,leido:0,resp:0,fall:0,enp:0,costo:0,etapas:{},resp_b:{}};
+  arr.forEach(function(d){
+    t.dest+=d.destinatarios||0;t.ent+=d.entregado||0;t.leido+=d.leido||0;t.resp+=d.respondido||0;
+    t.env+=d.enviado||0;t.fall+=d.fallido||0;t.enp+=d.en_proceso||0;t.costo+=d.costo||0;
+    var e=d.etapas||{};for(var k in e)t.etapas[k]=(t.etapas[k]||0)+e[k];
+    var rb=d.responsables||{};for(var k2 in rb)t.resp_b[k2]=(t.resp_b[k2]||0)+rb[k2];
+  });
+  return t;
+}
+var SEG_ORDER=['Meet','Agenda','Respondió','Contactado','Evolta - Por contactar','No responde','Descartado','Venta Perdido'];
+function segColor(nm){var s=(nm||'').toLowerCase();
+  if(s.indexOf('meet')>=0)return 'var(--ok)';
+  if(s.indexOf('agend')>=0||s.indexOf('respond')>=0||s.indexOf('contact')>=0)return 'var(--accent)';
+  if(s.indexOf('por contactar')>=0)return 'var(--accent-300)';
+  if(s.indexOf('no responde')>=0)return 'var(--warn)';
+  if(s.indexOf('descart')>=0||s.indexOf('perdid')>=0)return 'var(--bad)';
+  return 'var(--muted)';
+}
+function pctR(a,b){return b?Math.round(a/b*100):0;}
+function renderReact(){
+  if(!RJSON)return;
+  var arr=reactSel(),t=reactAgg(arr);
+  document.getElementById('rCount').textContent=arr.length+(arr.length===1?' difusión':' difusiones');
+  // funnel acumulado desde estados terminales
+  var entreg=t.ent+t.leido+t.resp, leidos=t.leido+t.resp, enviados=t.env+entreg;
+  // KPIs
+  var kpis=[
+    ['acc','Destinatarios',t.dest,'mensajes enviados'],
+    ['ok','Entregados',entreg,pctR(entreg,t.dest)+'% de destinatarios'],
+    ['warn','Leídos',leidos,pctR(leidos,t.dest)+'% de destinatarios'],
+    ['acc','Respondidos',t.resp,pctR(t.resp,t.dest)+'% tasa de respuesta'],
+    ['acc','Costo',(t.costo?('US$ '+t.costo.toFixed(2)):'US$ 0'),(t.resp?('US$ '+(t.costo/t.resp).toFixed(2)+' por respuesta'):'sin respuestas')]
+  ];
+  document.getElementById('rKpis').innerHTML=kpis.map(function(x){return '<div class="card kpi '+x[0]+'"><div class="lbl">'+x[1]+'</div><div class="num">'+(typeof x[2]==='number'?x[2].toLocaleString('es-PE'):x[2])+'</div><div class="s">'+x[3]+'</div></div>';}).join('');
+  // embudo de mensajería (acumulado)
+  var frows=[['Destinatarios',t.dest],['Enviados',enviados],['Entregados',entreg],['Leídos',leidos],['Respondidos',t.resp]];
+  document.getElementById('rFunnel').innerHTML=frows.map(function(r,i){var p=pctR(r[1],t.dest);var col=i===0?'var(--accent)':(i===frows.length-1?'var(--ok)':'var(--accent-300)');
+    return '<div class="erow"><div class="t"><span class="dd"><span class="sq" style="background:'+col+'"></span>'+r[0]+'</span><span class="nt">'+p+'%</span></div><div style="display:flex;align-items:center;gap:8px"><div class="rail '+(i===0?'base':'')+'" style="flex:1"><div class="fill" style="width:'+p+'%;background:'+col+'"></div></div><span class="v">'+r[1].toLocaleString('es-PE')+'</span></div></div>';}).join('');
+  document.getElementById('rFunnelFoot').innerHTML='De <b>'+t.dest.toLocaleString('es-PE')+'</b> mensajes, <b>'+pctR(t.resp,t.dest)+'%</b> respondió.';
+  // embudo de seguimiento CRM (etapas)
+  var et=t.etapas,keys=SEG_ORDER.filter(function(k){return et[k]!=null;});
+  Object.keys(et).forEach(function(k){if(keys.indexOf(k)<0)keys.push(k);});
+  var maxE=Math.max.apply(null,keys.map(function(k){return et[k];}).concat([1]));
+  document.getElementById('rSeg').innerHTML=keys.length?keys.map(function(k){var v=et[k]||0,col=segColor(k);
+    return '<div class="drow"><span class="nm" title="'+esc(k)+'">'+esc(k)+'</span><div class="rail"><div class="fill" style="width:'+Math.round(v/maxE*100)+'%;background:'+col+'"></div></div><span class="pc mono">'+v+'</span><span class="sq" style="background:'+col+'"></span></div>';}).join(''):'<div class="note">Sin datos de etapas.</div>';
+  // por responsable
+  var rb=t.resp_b,rks=Object.keys(rb).sort(function(a,b){return rb[b]-rb[a];});
+  var maxR=Math.max.apply(null,rks.map(function(k){return rb[k];}).concat([1]));
+  document.getElementById('rResp').innerHTML=rks.length?rks.map(function(k){var v=rb[k];
+    return '<div class="drow"><span class="nm" title="'+esc(k)+'">'+esc(k.split(' ')[0])+'</span><div class="rail"><div class="fill" style="width:'+Math.round(v/maxR*100)+'%"></div></div><span class="pc mono">'+v+'</span></div>';}).join(''):'<div class="note">Sin datos.</div>';
+  // gráfico enviados por día
+  renderReactChart(arr);
+  // tabla difusiones
+  var sorted=arr.slice().sort(function(a,b){return (Date.parse(b.fecha)||0)-(Date.parse(a.fecha)||0);});
+  document.getElementById('rTable').innerHTML='<table class="t" style="min-width:760px"><thead><tr><th>Fecha</th><th>Difusión</th><th style="text-align:right">Dest.</th><th style="text-align:right">Entreg.</th><th style="text-align:right">Leídos</th><th style="text-align:right">Resp.</th><th style="text-align:right">% Resp</th><th style="text-align:right">Costo</th></tr></thead><tbody>'+
+    (sorted.length?sorted.map(function(d){var ent=d.entregado+d.leido+d.respondido,lei=d.leido+d.respondido;
+      return '<tr style="cursor:pointer" onclick="selReact('+d.id+')"><td class="mono">'+esc(fechaHora(d.fecha))+'</td><td class="main">'+esc(d.nombre||('Difusión '+d.id))+'</td><td class="mono" style="text-align:right">'+d.destinatarios+'</td><td class="mono" style="text-align:right">'+ent+'</td><td class="mono" style="text-align:right">'+lei+'</td><td class="mono" style="text-align:right">'+d.respondido+'</td><td class="mono" style="text-align:right">'+pctR(d.respondido,d.destinatarios)+'%</td><td class="mono" style="text-align:right">US$ '+(d.costo||0).toFixed(2)+'</td></tr>';}).join(''):'<tr><td colspan="8" class="loading">Sin difusiones en este filtro.</td></tr>')+
+    '</tbody></table>';
+}
+window.renderReact=renderReact;
+function selReact(id){rF.dif=String(id);document.getElementById('rDif').value=String(id);renderReact();window.scrollTo(0,0);}
+window.selReact=selReact;
+function fechaHora(iso){if(!iso)return 's/f';var d=new Date(iso);if(isNaN(d))return 's/f';return d.toLocaleString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}
+function renderReactChart(arr){
+  var el=document.getElementById('rChart');if(!el)return;
+  // agrupar por día
+  var byDay={};arr.forEach(function(d){if(!d.fecha)return;var k=d.fecha.slice(0,10);byDay[k]=byDay[k]||{dest:0,difs:[]};byDay[k].dest+=d.destinatarios||0;byDay[k].difs.push(d);});
+  var days=Object.keys(byDay).sort();
+  if(!days.length){el.innerHTML='<div class="note">Sin datos para graficar.</div>';return;}
+  var maxV=Math.max.apply(null,days.map(function(k){return byDay[k].dest;}).concat([1]));
+  var bw=Math.max(26,Math.min(60,Math.floor(760/days.length))),gap=8,H=190,top=12,bh=H-34;
+  var W=days.length*(bw+gap)+gap;
+  var svg='<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="font-family:var(--mono)">';
+  days.forEach(function(k,i){
+    var o=byDay[k],x=gap+i*(bw+gap),h=Math.round(o.dest/maxV*bh),y=top+bh-h;
+    var tip=fechaCorta(k+'T00:00:00')+' · '+o.dest+' destinatarios\n'+o.difs.map(function(d){return '• '+(d.nombre||('Dif '+d.id))+'\n   env '+(d.enviado+d.entregado+d.leido+d.respondido)+' · entreg '+(d.entregado+d.leido+d.respondido)+' · leídos '+(d.leido+d.respondido)+' · resp '+d.respondido;}).join('\n');
+    svg+='<g><rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" fill="var(--accent)"><title>'+esc(tip)+'</title></rect>';
+    svg+='<text x="'+(x+bw/2)+'" y="'+(y-3)+'" text-anchor="middle" font-size="10" fill="var(--muted)">'+o.dest+'</text>';
+    svg+='<text x="'+(x+bw/2)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">'+fechaCorta(k+'T00:00:00')+'</text></g>';
+  });
+  svg+='</svg>';
+  el.innerHTML=svg;
+}
 
 /* ===== HORAS ===== */
 var hrPer='mes',HRTAB=null;
