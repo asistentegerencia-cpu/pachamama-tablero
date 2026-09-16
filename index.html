@@ -696,8 +696,14 @@ function paintAtencion(j,arr){
   var difDe={};arr.forEach(function(d){(d.resp_leads||[]).forEach(function(id){difDe[String(id)]=d.nombre||('Dif '+d.id);});});
   var filas=j.filas||[];
   var sla=j.atendidos_en_sla||0, atend=j.atendidos||0, conHora=j.con_hora_respuesta||0, total=j.total||filas.length;
+  // tiempo promedio de atención (respondió → atendió), solo sobre los atendidos
+  var tiempos=filas.map(function(f){return f.atencion_min;}).filter(function(v){return v!=null;});
+  var prom=tiempos.length?Math.round((tiempos.reduce(function(a,b){return a+b;},0)/tiempos.length)*10)/10:null;
+  var promTxt=prom==null?'—':(prom>=60?(Math.floor(prom/60)+'h '+Math.round(prom%60)+'m'):(prom+' min'));
+  var promBand=prom==null?'acc':(prom<=10?'ok':(prom<=30?'warn':'bad'));
   var kpis=[
     ['ok','Contactados ≤10 min',sla,conHora?(pctR(sla,conHora)+'% de los que tienen registro'):'—'],
+    [promBand,'Tiempo promedio',promTxt,'de respuesta a atención · sobre '+tiempos.length+' atendidos'],
     ['acc','Atendidos (total)',atend,'tienen atención registrada'],
     ['warn','Con hora de respuesta',conHora,'de '+total+' que respondieron'],
     ['bad','Sin registro en CRM',total-conHora,'respondieron pero sin rastro de tarea']
