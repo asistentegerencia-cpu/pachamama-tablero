@@ -270,6 +270,26 @@ table.t tr:hover td{background:var(--accent-100)}
         <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Por responsable</h2><span class="n">destinatarios y respuestas</span></div><div id="rResp"></div></div>
         <div class="panel"><div class="phead"><h2>Difusiones</h2><span class="n">clic en una fila para verla sola</span></div><div class="tw" id="rTable"></div></div>
       </section>
+
+      <!-- ===== Errores de n8n ===== -->
+      <section class="view" id="v-n8n">
+        <div class="filt" style="margin-bottom:12px">
+          <span class="flbl">Periodo</span>
+          <div class="seg" id="n8nSeg">
+            <button data-d="1" class="on">24 h</button><button data-d="7">7 días</button><button data-d="30">30 días</button>
+          </div>
+          <span class="flbl" style="margin-left:10px">Estado</span>
+          <div class="seg" id="n8nEst">
+            <button data-e="todos" class="on">Todos</button><button data-e="abierto">Sin resolver</button><button data-e="resuelto">Resueltos</button>
+          </div>
+          <span class="count mono" id="n8nCount"></span>
+        </div>
+        <div class="grid kpis" id="n8nKpis" style="margin-bottom:12px"></div>
+        <div class="panel">
+          <div class="phead"><h2>Fallos de automatizaciones</h2><span class="n">cada fila es una ejecución con error</span></div>
+          <div class="tw" id="n8nTabla"></div>
+        </div>
+      </section>
     </div>
   </main>
 </div>
@@ -285,7 +305,7 @@ table.t tr:hover td{background:var(--accent-100)}
   window.fetch=function(input,init){var url=(typeof input==="string")?input:((input&&input.url)||"");if(url.indexOf(BACKEND)===-1)return _f(input,init);init=init||{};var h=new Headers(init.headers||{});h.set("X-API-Key",clave());init.headers=h;return _f(input,init).then(function(r){if(r.status===401){try{localStorage.removeItem(STORE);}catch(e){}alert("Clave incorrecta o vencida. Recarga e ingrésala de nuevo.");}return r;});};
 })();
 var B="https://pachamama-backend-v0v0.onrender.com";
-var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config",atn:B+"/api/reactivacion/atencion"};
+var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config",atn:B+"/api/reactivacion/atencion",n8n:B+"/api/n8n/errores"};
 var META_LOTES=60,META_LEADS_DIA=30,SLA_V=10,SLA_R=30,META_AGENDA=0.90;
 var DASH=null,HIST=null,REASIG={},USERS=null,REP=null,ACT={},actDias="hoy",actKey="dias=hoy",view="dash";
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -296,7 +316,7 @@ function hhmm(iso){if(!iso)return "—";try{return new Date(iso).toLocaleTimeStr
 function bandColor(s){return s==='verde'?'var(--ok)':s==='amarillo'?'var(--warn)':s==='rojo'?'var(--bad)':'var(--muted)';}
 
 /* ===== nav ===== */
-var NAV=[["dash","Tablero","Resultados del mes de un vistazo"],["equipo","Equipo y reparto","Actividad de cuentas y cronograma de reparto"],["citas","Citas","Agenda del día y por asesor"],["hist","Historial","Atenciones y tiempos de respuesta"],["horas","Horarios de entrada","Cuándo llegan los leads"],["react","Reactivación","Difusiones de WhatsApp"]];
+var NAV=[["dash","Tablero","Resultados del mes de un vistazo"],["equipo","Equipo y reparto","Actividad de cuentas y cronograma de reparto"],["citas","Citas","Agenda del día y por asesor"],["hist","Historial","Atenciones y tiempos de respuesta"],["horas","Horarios de entrada","Cuándo llegan los leads"],["react","Reactivación","Difusiones de WhatsApp"],["n8n","Errores de n8n","Fallos de las automatizaciones y su estado"]];
 var navEl=document.getElementById('nav'),mnavEl=document.getElementById('mnav');
 NAV.forEach(function(n){var b=document.createElement('button');b.innerHTML='<span class="dot"></span>'+n[1];b.onclick=function(){go(n[0])};b.dataset.v=n[0];navEl.appendChild(b);var m=document.createElement('button');m.textContent=n[1];m.onclick=function(){go(n[0])};m.dataset.v=n[0];mnavEl.appendChild(m);});
 function go(v){view=v;document.querySelectorAll('.view').forEach(function(s){s.classList.remove('on')});document.getElementById('v-'+v).classList.add('on');document.querySelectorAll('.nav button,.mtop button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});var n=NAV.find(function(x){return x[0]===v});document.getElementById('h1').textContent=n[1];document.getElementById('sub').textContent=n[2];window.scrollTo(0,0);lazy(v);}
@@ -309,7 +329,62 @@ function lazy(v){
   if(v==='dash'){if(!HIST){loadHist(function(){renderDash();});}else{renderDash();}return;}
   if(v==='react'){loadReact(function(){renderReact();});return;}
   if(v==='equipo'){loadActividad();loadReparto();}
+  if(v==='n8n'){loadN8n();return;}
 }
+
+/* ===== errores de n8n ===== */
+var N8N=null,n8nDias=1,n8nEstado="todos";
+function loadN8n(){
+  var cont=document.getElementById('n8nTabla');
+  if(N8N&&N8N.dias===n8nDias){renderN8n();return;}
+  cont.innerHTML='<div class="loading">Cargando…</div>';
+  fetch(EP.n8n+"?dias="+n8nDias).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){
+    N8N={dias:n8nDias,errores:(j&&j.errores)||[]};renderN8n();
+  }).catch(function(){
+    N8N={dias:n8nDias,errores:null};renderN8n();
+  });
+}
+function renderN8n(){
+  var cont=document.getElementById('n8nTabla'),kpis=document.getElementById('n8nKpis'),cnt=document.getElementById('n8nCount');
+  if(!N8N||N8N.errores===null){
+    kpis.innerHTML='';cnt.textContent='';
+    cont.innerHTML='<div class="empty">Todavía no hay registro de errores.<br><span class="note">Se llenará automáticamente cuando las automatizaciones de agendamiento empiecen a reportar. Ninguna falla queda sin registrar.</span></div>';
+    return;
+  }
+  var todos=N8N.errores;
+  var lista=todos.filter(function(e){return n8nEstado==='todos'||(n8nEstado==='resuelto'?e.estado==='resuelto':e.estado!=='resuelto');});
+  var sinResolver=todos.filter(function(e){return e.estado!=='resuelto';}).length;
+  var flujos={};todos.forEach(function(e){if(e.flujo)flujos[e.flujo]=1;});
+  var k=[['acc','Errores en el periodo',todos.length,'','ejecuciones con fallo'],
+         [sinResolver?'bad':'ok','Sin resolver',sinResolver,'','requieren revisión'],
+         ['','Flujos afectados',Object.keys(flujos).length,'','automatizaciones distintas']];
+  kpis.innerHTML=k.map(function(x){return '<div class="card kpi '+x[0]+'"><div class="lbl">'+esc(x[1])+'</div><div class="num">'+x[2]+' <small>'+x[3]+'</small></div><div class="s">'+esc(x[4])+'</div></div>';}).join('');
+  cnt.textContent=lista.length+' de '+todos.length;
+  if(!lista.length){cont.innerHTML='<div class="empty">Sin errores en este periodo. 🎉</div>';return;}
+  var filas=lista.map(function(e){
+    var res=e.estado==='resuelto';
+    return '<tr>'+
+      '<td class="mono">'+esc((e.fecha||'').slice(0,10))+' '+hhmm(e.fecha)+'</td>'+
+      '<td class="main">'+esc(e.flujo||'—')+'</td>'+
+      '<td>'+esc(e.nodo||'—')+'</td>'+
+      '<td>'+esc(e.mensaje||'—')+'</td>'+
+      '<td class="mono">'+esc(e.lead||'—')+'</td>'+
+      '<td class="mono">'+esc(e.run_id||'—')+'</td>'+
+      '<td><span class="sdot"><span class="d" style="background:'+(res?'var(--ok)':'var(--bad)')+'"></span>'+(res?'Resuelto':'Sin resolver')+'</span></td>'+
+    '</tr>';
+  }).join('');
+  cont.innerHTML='<table class="t"><thead><tr><th>Fecha</th><th>Automatización</th><th>Paso que falló</th><th>Detalle</th><th>Lead</th><th>Seguimiento</th><th>Estado</th></tr></thead><tbody>'+filas+'</tbody></table>';
+}
+document.getElementById('n8nSeg').addEventListener('click',function(ev){
+  var b=ev.target.closest('button');if(!b)return;
+  this.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
+  n8nDias=parseInt(b.dataset.d,10);loadN8n();
+});
+document.getElementById('n8nEst').addEventListener('click',function(ev){
+  var b=ev.target.closest('button');if(!b)return;
+  this.querySelectorAll('button').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
+  n8nEstado=b.dataset.e;renderN8n();
+});
 
 /* ===== fetchers ===== */
 function badge(mode){var el=document.getElementById('badge');if(!el)return;if(mode==='live'){el.className='badge';el.innerHTML='<span class="g"></span>EN VIVO';}else if(mode==='demo'){el.className='badge demo';el.innerHTML='<span class="g"></span>SIN CONEXIÓN';}else{el.className='badge';el.innerHTML='<span class="g"></span>CONECTANDO…';}}
