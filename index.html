@@ -131,6 +131,16 @@ table.t tr:hover td{background:var(--accent-100)}
 .switch .k{position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;transition:left .12s}
 .switch.on{background:var(--ok)}.switch.on .k{left:20px}
 .alert{color:var(--bad);font-size:12px;font-weight:600;margin-top:8px}
+.cfgRow{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.cfgRow:last-child{border-bottom:0}
+.cfgRow .t{font-weight:700;font-size:13px}
+.cfgRow .d{font-size:11.5px;color:var(--muted);margin-top:2px}
+.cfgState{font-size:12px;display:flex;flex-wrap:wrap;gap:6px 14px;padding:8px 10px;background:var(--accent-100);margin-bottom:6px}
+.cfgState b{font-weight:800}
+.cfgWarn{border-left:3px solid var(--bad);background:#fbeceb;padding:8px 10px;font-size:12px;margin:6px 0}
+.hRow{display:grid;grid-template-columns:48px 70px 1fr;gap:8px;align-items:center;font-size:12px;padding:3px 0}
+.hRow input[type=time]{font-family:inherit;font-size:12px;padding:3px 4px;border:1px solid var(--line)}
+.hRow label{display:flex;gap:5px;align-items:center;cursor:pointer}
 .empty{border:1px dashed var(--line);padding:20px;text-align:center;color:var(--muted);font-size:12.5px}
 .note{font-size:11px;color:var(--muted);margin-top:8px}
 .loading{color:var(--muted);font-size:13px;padding:16px 2px}
@@ -184,6 +194,10 @@ table.t tr:hover td{background:var(--accent-100)}
         <div class="filt"><span class="flbl">Periodo</span><span class="seg" id="actSeg"><button data-d="hoy" class="on">Hoy</button><button data-d="7">7 días</button><button data-d="30">30 días</button><button data-d="custom">Rango…</button></span><span id="eqCustom" hidden style="display:inline-flex;gap:6px;align-items:center"><span class="flbl">Desde</span><input type="date" id="eqDesde" onchange="eqCustomReload()"><span style="color:var(--muted)">→</span><span class="flbl">Hasta</span><input type="date" id="eqHasta" onchange="eqCustomReload()"></span><select id="eqAse" onchange="renderAct()"><option value="">Todos los asesores</option></select></div>
         <div class="grid kpis" id="actKpis" style="margin-bottom:12px"><div class="loading">Cargando…</div></div>
         <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Cuentas activas en Kommo</h2><span class="n" id="actUpd"></span></div><div class="tw" id="cuentas"></div></div>
+        <div class="panel" id="cfgPanel" style="margin-bottom:14px">
+          <div class="phead"><h2>Configuración actual</h2><span class="n" id="cfgUpd">interruptores del reparto y del reloj</span></div>
+          <div id="cfgBody" class="loading">Cargando configuración…</div>
+        </div>
         <div class="panel">
           <div class="phead"><h2>Cronograma de reparto</h2><span class="n">quién recibe leads nuevos</span></div>
           <div class="modeToggle"><button id="mGen" class="on" onclick="setMode('gen')">Modo general</button><button id="mCron" onclick="setMode('cron')">Por cronograma</button></div>
@@ -302,7 +316,7 @@ table.t tr:hover td{background:var(--accent-100)}
   function clave(){var k="";try{k=localStorage.getItem(STORE)||"";}catch(e){}if(!k)k=pedir();return k;}
   clave();
   var _f=window.fetch.bind(window);
-  window.fetch=function(input,init){var url=(typeof input==="string")?input:((input&&input.url)||"");if(url.indexOf(BACKEND)===-1)return _f(input,init);init=init||{};var h=new Headers(init.headers||{});h.set("X-API-Key",clave());init.headers=h;return _f(input,init).then(function(r){if(r.status===401){try{localStorage.removeItem(STORE);}catch(e){}alert("Clave incorrecta o vencida. Recarga e ingrésala de nuevo.");}return r;});};
+  window.fetch=function(input,init){var url=(typeof input==="string")?input:((input&&input.url)||"");if(url.indexOf(BACKEND)===-1)return _f(input,init);if(window.__fresco&&Date.now()-window.__fresco<20000&&typeof input==="string"&&!(init&&init.method&&init.method!=="GET")){input+=(input.indexOf("?")>=0?"&":"?")+"fresco=1";}init=init||{};var h=new Headers(init.headers||{});h.set("X-API-Key",clave());init.headers=h;return _f(input,init).then(function(r){if(r.status===401){try{localStorage.removeItem(STORE);}catch(e){}alert("Clave incorrecta o vencida. Recarga e ingrésala de nuevo.");}return r;});};
 })();
 var B="https://pachamama-backend-v0v0.onrender.com";
 var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config",atn:B+"/api/reactivacion/atencion",n8n:B+"/api/n8n/errores"};
@@ -392,8 +406,8 @@ function loadDash(){fetch(EP.dash).then(function(r){if(!r.ok)throw 0;return r.js
 function loadHist(cb){if(HIST){cb&&cb();return;}fetch(EP.hist).then(function(r){return r.json();}).then(function(j){HIST=j;pobFiltros();cb&&cb();loadReasig();}).catch(function(){cb&&cb();});}
 function loadReasig(){fetch(EP.reasig).then(function(r){return r.json();}).then(function(j){if(j&&j.cadenas){REASIG=j.cadenas;if(view==='hist')renderHist();}}).catch(function(){});}
 function loadActividad(){renderAct();if(ACT[actKey]){renderAct();return;}fetch(EP.act+"?"+actKey).then(function(r){return r.json();}).then(function(j){ACT[actKey]=j;renderAct();}).catch(function(){});}
-function loadReparto(){if(REP&&USERS){renderGen();return;}Promise.all([fetch(EP.reparto).then(function(r){return r.json();}),fetch(EP.users).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(a){REP=a[0]||{};USERS=a[1];renderGen();}).catch(function(){document.getElementById('genChips').innerHTML='<div class="note">No se pudo cargar.</div>';});}
-function recargar(){DASH=null;HIST=null;REASIG={};REP=null;USERS=null;ACT={};badge('load');loadDash();loadHist(function(){renderCitasHoy();if(view==='citas')renderCitas();if(view==='hist')renderHist();if(view==='horas')renderHoras();});if(view==='equipo'){loadActividad();loadReparto();}}
+function loadReparto(){loadCfg();if(REP&&USERS){renderGen();return;}Promise.all([fetch(EP.reparto).then(function(r){return r.json();}),fetch(EP.users).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(a){REP=a[0]||{};USERS=a[1];renderGen();}).catch(function(){document.getElementById('genChips').innerHTML='<div class="note">No se pudo cargar.</div>';});}
+function recargar(){window.__fresco=Date.now();CFG=null;DASH=null;HIST=null;REASIG={};REP=null;USERS=null;ACT={};badge('load');loadDash();loadHist(function(){renderCitasHoy();if(view==='citas')renderCitas();if(view==='hist')renderHist();if(view==='horas')renderHoras();});if(view==='equipo'){loadActividad();loadReparto();}}
 window.recargar=recargar;
 
 /* ===== DASH ===== */
@@ -880,6 +894,60 @@ window.setMode=setMode;
 function initSched(){sched=DAYS.map(function(_,d){var off=(d===5);var blocks=BLK.map(function(){return off?[]:ASE.map(function(_,i){return i;}).slice(0,Math.min(4,ASE.length));});return {off:off,blocks:blocks};});}
 function pickDay(i){curDay=i;renderCron();}
 window.pickDay=pickDay;
+/* ===== CONFIGURACIÓN ACTUAL (interruptores del backend) ===== */
+var CFG=null,CFG_EST=null,CFG_USERS=null,CFG_H=null,CFG_VOL=null;
+var CFG_DIAS=[[1,'Lun'],[2,'Mar'],[3,'Mié'],[4,'Jue'],[5,'Vie'],[6,'Sáb'],[0,'Dom']];
+function loadCfg(){
+  var body=document.getElementById('cfgBody');if(!body)return;
+  if(CFG&&CFG_EST){renderCfg();return;}
+  Promise.all([
+    fetch(B+"/api/sla/estado").then(function(r){if(r.status===404)throw 'viejo';if(!r.ok)throw 'error';return r.json();}),
+    fetch(EP.users).then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(a){CFG_EST=a[0];CFG=a[0].config;CFG_USERS=Array.isArray(a[1])?a[1]:null;CFG_H=null;CFG_VOL=null;renderCfg();})
+  .catch(function(e){body.className='';body.innerHTML=e==='viejo'?'<div class="note" style="margin:0">Este panel se activa cuando despliegues la versión nueva del backend (Render → Manual Deploy).</div>':'<div class="note" style="margin:0">No se pudo leer la configuración. <button class="btn2" style="padding:5px 9px" onclick="CFG=null;loadCfg()">Reintentar</button></div>';});
+}
+function cfgNombre(id){var u=(CFG_USERS||[]).find(function(x){return String(x.id)===String(id);});return u?u.name:('cuenta '+id);}
+function cfgHace(iso){if(!iso)return 'nunca';var s=Math.round((Date.now()-new Date(iso).getTime())/1000);if(s<60)return 'hace '+s+' s';return 'hace '+Math.round(s/60)+' min';}
+function renderCfg(){
+  var body=document.getElementById('cfgBody');if(!body||!CFG)return;body.className='';
+  if(!CFG_H){CFG_H={};CFG_DIAS.forEach(function(d){var t=CFG.horario[d[0]];CFG_H[d[0]]=t?[t[0],t[1]]:null;});}
+  if(!CFG_VOL)CFG_VOL=(CFG.fueraHorario.voluntarios||[]).slice();
+  var e=CFG_EST||{},uc=e.ultimo_ciclo,h='';
+  h+='<div class="cfgState"><span>Ahora: <b>'+(e.en_horario?'en horario':'fuera de horario')+'</b></span>'+
+     '<span>Último ciclo: <b>'+(uc?cfgHace(uc.fin):'sin datos')+'</b>'+(uc&&uc.resumen?' · '+uc.resumen.repartidos+' repartidos, '+uc.resumen.reasignados+' reasignados':'')+'</span>'+
+     (e.kommo?'<span>Kommo: <b>'+esc(e.kommo.estado||'')+'</b> · frenadas desde el arranque: <b>'+(e.kommo.respuestas_429_desde_el_arranque||0)+'</b></span>':'')+'</div>';
+  if(e.kommo&&e.kommo.bloqueado_hasta&&new Date(e.kommo.bloqueado_hasta).getTime()>Date.now())h+='<div class="cfgWarn">Kommo bloqueó las consultas del servidor por exceso. Se reanudan solas a las '+new Date(e.kommo.bloqueado_hasta).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})+'. Mientras tanto, activa el Plan B en Kommo.</div>';
+  if(uc&&!uc.ok)h+='<div class="cfgWarn">El último ciclo falló: '+esc(uc.error||'')+'</div>';
+  if(uc&&uc.fin&&Date.now()-new Date(uc.fin).getTime()>3*60*1000)h+='<div class="cfgWarn">El reparto no corre hace más de 3 minutos. Si sigue así, activa el Plan B en Kommo (Salesbot «REPARTO AUTO» en Incoming leads).</div>';
+  var falt=(uc&&uc.faltantes_en_rotacion)||[];
+  if(falt.length)h+='<div class="cfgWarn">En la lista de reparto hay '+falt.length+' que ya no existen o están inactivos: '+falt.map(function(f){return esc(f.entrada)+' ('+f.motivo+')';}).join(', ')+'. Marca de nuevo a los asesores abajo y guarda.</div>';
+  var ra=CFG.apagado_en_render||{};
+  h+=cfgSw('reparto','Reparto automático',CFG.reparto?'El backend acepta y reparte los leads nuevos.':'Apagado: los leads se quedan en la bandeja. Activa el Plan B en Kommo.',ra.reparto);
+  h+=cfgSw('reloj','Reloj de 10 minutos',CFG.reloj?'Si nadie marca el contacto en 10 min dentro del horario, el lead pasa al siguiente asesor.':'Apagado: no se reasigna ni se enfría ningún lead.',ra.reloj);
+  h+='<div class="cfgRow"><div style="flex:1"><div class="t">Horario del reloj</div><div class="d">Fuera de estas horas el reloj no corre.</div><div style="margin-top:6px">'+
+     CFG_DIAS.map(function(d){var t=CFG_H[d[0]];return '<div class="hRow"><b>'+d[1]+'</b><label><input type="checkbox" '+(t?'checked':'')+' onchange="cfgDia('+d[0]+',this.checked)">atiende</label><span>'+(t?'<input type="time" value="'+t[0]+'" onchange="cfgHora('+d[0]+',0,this.value)"> a <input type="time" value="'+(t[1]==='24:00'?'23:59':t[1])+'" onchange="cfgHora('+d[0]+',1,this.value)">':'<span style="color:var(--muted)">sin reloj</span>')+'</span></div>';}).join('')+
+     '</div><div style="margin-top:8px;display:flex;gap:10px;align-items:center"><button class="btn" onclick="cfgGuardarHorario()">Guardar horario</button><span class="count" id="cfgHMsg" style="margin-left:0"></span></div></div></div>';
+  var fh=CFG.fueraHorario||{};
+  h+='<div class="cfgRow"><div style="flex:1"><div class="t">Fuera de horario</div><div class="d">'+(fh.voluntariosActivo&&(fh.voluntarios||[]).length?'Los leads van a los voluntarios marcados, por turnos. No se mide el tiempo.':'Los leads van al contact center ('+esc(cfgNombre(fh.ccUserId))+'). No se mide el tiempo.')+' Al abrir el turno, los que siguen sin atender pasan a la rotación.</div>'+
+     '<div style="display:flex;gap:10px;align-items:center;margin-top:8px"><div class="switch'+(fh.voluntariosActivo?' on':'')+'" role="switch" aria-checked="'+!!fh.voluntariosActivo+'" tabindex="0" onclick="cfgVolSw()"><span class="k"></span></div><span style="font-size:12px;font-weight:700">Voluntarios activos</span></div>'+
+     '<div class="aBtns">'+(CFG_USERS||[]).filter(function(u){return u.activo!==false;}).map(function(u){var on=CFG_VOL.indexOf(u.id)>=0;return '<button class="aBtn'+(on?' on':'')+'" onclick="cfgVolT('+u.id+')" style="'+(on?'background:var(--accent-100);border-color:var(--accent);color:var(--accent-dark)':'')+'">'+esc(u.name)+'</button>';}).join('')+'</div>'+
+     '<div style="margin-top:8px;display:flex;gap:10px;align-items:center"><button class="btn2" style="padding:7px 12px" onclick="cfgGuardarVol()">Guardar voluntarios</button><span class="count" id="cfgVMsg" style="margin-left:0"></span></div></div></div>';
+  body.innerHTML=h;
+  var u=document.getElementById('cfgUpd');if(u)u.textContent=CFG.desde_nota?'guardado en Kommo':'valores por defecto';
+}
+function cfgSw(k,t,d,bloq){var on=!!CFG[k];return '<div class="cfgRow"><div class="switch'+(on?' on':'')+'" role="switch" aria-checked="'+on+'" tabindex="0" onclick="'+(bloq?'':'cfgToggle(\''+k+'\')')+'" style="'+(bloq?'opacity:.5;cursor:not-allowed':'')+'"><span class="k"></span></div><div><div class="t">'+t+'</div><div class="d">'+d+(bloq?' Está apagado en Render (variable '+(k==='reparto'?'REPARTO_ACTIVO':'SLA_ACTIVO')+').':'')+'</div></div></div>';}
+function cfgPost(cambios,msgId){var m=msgId&&document.getElementById(msgId);if(m)m.textContent='Guardando…';
+  return fetch(B+"/api/sla/config",{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)}).then(function(r){return r.json().then(function(j){if(!r.ok)throw (j&&j.error)||'error';return j;});})
+  .then(function(j){CFG=j.config;CFG_H=null;CFG_VOL=null;renderCfg();var m2=msgId&&document.getElementById(msgId);if(m2)m2.textContent='✓ Guardado';})
+  .catch(function(err){var m3=msgId&&document.getElementById(msgId);if(m3)m3.textContent='No se guardó: '+err;else alert('No se guardó: '+err);});}
+window.cfgToggle=function(k){var c={};c[k]=!CFG[k];cfgPost(c);};
+window.cfgDia=function(d,on){CFG_H[d]=on?['09:00','18:00']:null;renderCfg();};
+window.cfgHora=function(d,i,v){if(CFG_H[d])CFG_H[d][i]=v;};
+window.cfgGuardarHorario=function(){cfgPost({horario:CFG_H},'cfgHMsg');};
+window.cfgVolT=function(id){var k=CFG_VOL.indexOf(id);if(k>=0)CFG_VOL.splice(k,1);else CFG_VOL.push(id);renderCfg();};
+window.cfgVolSw=function(){cfgPost({fueraHorario:{voluntariosActivo:!CFG.fueraHorario.voluntariosActivo,voluntarios:CFG_VOL}});};
+window.cfgGuardarVol=function(){cfgPost({fueraHorario:{voluntarios:CFG_VOL}},'cfgVMsg');};
+
 function toggleOff(){sched[curDay].off=!sched[curDay].off;renderCron();}
 window.toggleOff=toggleOff;
 function blkT(bi,ai){var arr=sched[curDay].blocks[bi];var k=arr.indexOf(ai);if(k>=0)arr.splice(k,1);else arr.push(ai);renderCron();}
