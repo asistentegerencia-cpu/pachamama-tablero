@@ -419,7 +419,7 @@ window.limpiarDash=limpiarDash;
 function renderDash(){
   if(!DASH)return;
   dF.ase=(document.getElementById('dAse')||{}).value||'';dF.camp=(document.getElementById('dCamp')||{}).value||'';
-  var m=DASH.meta_mensual||{},lotes=(m.lotes_vendidos!=null?m.lotes_vendidos:0);
+  var m=DASH.meta_mensual||{},lotes=(m.lotes_vendidos!=null?m.lotes_vendidos:0),vMes=(m.ventas_mes!=null?m.ventas_mes:null);
   var iniHoy=(function(){var d0=new Date();d0.setHours(0,0,0,0);return d0.getTime();})();
   var leadsHoy=(HIST&&HIST.filas)?HIST.filas.filter(function(f){var t=tISO(f.entrada);return t&&t>=iniHoy&&f.campania&&f.campania!=='Directo / mensaje';}).length:(DASH.leads_hoy!=null?DASH.leads_hoy:0);
   var FF=dashFilas();
@@ -428,7 +428,8 @@ function renderDash(){
   var cola=DASH.cola||[];var now=Date.now();
   var mas30=cola.filter(function(c){var t=tISO(c.entrada||c.created_at);return t&&(now-t)/60000>30;}).length;
   var k=[
-    ['warn','Clientes',lotes,'de '+META_LOTES+' meta',pctv(lotes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-lotes)],
+    [(vMes!=null&&vMes>=META_LOTES?'ok':'warn'),'Ventas del mes',(vMes!=null?vMes:'—'),'de '+META_LOTES+' meta',(vMes!=null?pctv(vMes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-vMes):'Aún sin dato del servidor')],
+    ['acc','Leads en Venta hoy',lotes,'en total','Todos los que hoy están en la etapa Venta, sin importar el mes'],
     ['warn','Leads hoy',leadsHoy,'meta '+META_LEADS_DIA+'/día · solo campañas',pctv(leadsHoy,META_LEADS_DIA)+'% de la meta diaria'],
     [(slaPct!=null&&slaPct>=70?'ok':'warn'),'Atención a tiempo',(slaPct!=null?slaPct:'—'),(slaPct!=null?'%':''),slaSub],
     [(cola.length?'bad':'ok'),'Leads sin atender',cola.length,'ahora',mas30+' con más de 30 min']
