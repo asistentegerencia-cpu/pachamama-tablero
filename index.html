@@ -915,7 +915,8 @@ function renderCfg(){
   var e=CFG_EST||{},uc=e.ultimo_ciclo,h='';
   h+='<div class="cfgState"><span>Ahora: <b>'+(e.en_horario?'en horario':'fuera de horario')+'</b></span>'+
      '<span>Último ciclo: <b>'+(uc?cfgHace(uc.fin):'sin datos')+'</b>'+(uc&&uc.resumen?' · '+uc.resumen.repartidos+' repartidos, '+uc.resumen.reasignados+' reasignados':'')+'</span>'+
-     (e.kommo?'<span>Consultas a Kommo: <b>'+e.kommo.consultas+'</b> · frenadas por Kommo: <b>'+e.kommo.respuestas_429+'</b></span>':'')+'</div>';
+     (e.kommo?'<span>Kommo: <b>'+esc(e.kommo.estado||'')+'</b> · frenadas desde el arranque: <b>'+(e.kommo.respuestas_429_desde_el_arranque||0)+'</b></span>':'')+'</div>';
+  if(e.kommo&&e.kommo.bloqueado_hasta&&new Date(e.kommo.bloqueado_hasta).getTime()>Date.now())h+='<div class="cfgWarn">Kommo bloqueó las consultas del servidor por exceso. Se reanudan solas a las '+new Date(e.kommo.bloqueado_hasta).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})+'. Mientras tanto, activa el Plan B en Kommo.</div>';
   if(uc&&!uc.ok)h+='<div class="cfgWarn">El último ciclo falló: '+esc(uc.error||'')+'</div>';
   if(uc&&uc.fin&&Date.now()-new Date(uc.fin).getTime()>3*60*1000)h+='<div class="cfgWarn">El reparto no corre hace más de 3 minutos. Si sigue así, activa el Plan B en Kommo (Salesbot «REPARTO AUTO» en Incoming leads).</div>';
   var falt=(uc&&uc.faltantes_en_rotacion)||[];
