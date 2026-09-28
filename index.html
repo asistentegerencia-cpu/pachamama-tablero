@@ -402,12 +402,20 @@ document.getElementById('n8nEst').addEventListener('click',function(ev){
 
 /* ===== fetchers ===== */
 function badge(mode){var el=document.getElementById('badge');if(!el)return;if(mode==='live'){el.className='badge';el.innerHTML='<span class="g"></span>EN VIVO';}else if(mode==='demo'){el.className='badge demo';el.innerHTML='<span class="g"></span>SIN CONEXIÓN';}else{el.className='badge';el.innerHTML='<span class="g"></span>CONECTANDO…';}}
-function loadDash(){fetch(EP.dash).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){DASH=j;badge('live');renderDash();}).catch(function(){badge('demo');document.getElementById('dashKpis').innerHTML='<div class="loading">No se pudo conectar. <button class="btn2" style="padding:5px 9px" onclick="recargar()">Reintentar</button></div>';});}
+function loadDash(){fetch(EP.dash).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(j){DASH=j;window.__datosTs=Date.now();badge('live');renderDash();}).catch(function(){badge('demo');document.getElementById('dashKpis').innerHTML='<div class="loading">No se pudo conectar. <button class="btn2" style="padding:5px 9px" onclick="recargar()">Reintentar</button></div>';});}
 function loadHist(cb){if(HIST){cb&&cb();return;}fetch(EP.hist).then(function(r){return r.json();}).then(function(j){HIST=j;pobFiltros();cb&&cb();loadReasig();}).catch(function(){cb&&cb();});}
 function loadReasig(){fetch(EP.reasig).then(function(r){return r.json();}).then(function(j){if(j&&j.cadenas){REASIG=j.cadenas;if(view==='hist')renderHist();}}).catch(function(){});}
 function loadActividad(){renderAct();if(ACT[actKey]){renderAct();return;}fetch(EP.act+"?"+actKey).then(function(r){return r.json();}).then(function(j){ACT[actKey]=j;renderAct();}).catch(function(){});}
 function loadReparto(){loadCfg();if(REP&&USERS){renderGen();return;}Promise.all([fetch(EP.reparto).then(function(r){return r.json();}),fetch(EP.users).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(a){REP=a[0]||{};USERS=a[1];renderGen();}).catch(function(){document.getElementById('genChips').innerHTML='<div class="note">No se pudo cargar.</div>';});}
-function recargar(){window.__fresco=Date.now();CFG=null;DASH=null;HIST=null;REASIG={};REP=null;USERS=null;ACT={};badge('load');loadDash();loadHist(function(){renderCitasHoy();if(view==='citas')renderCitas();if(view==='hist')renderHist();if(view==='horas')renderHoras();});if(view==='equipo'){loadActividad();loadReparto();}}
+// suave=true: refresco automático (sin pedir datos frescos a Kommo ni mostrar "conectando").
+// Se vacían TODOS los datos (también Citas, Historial y Horarios con otro período),
+// así nada queda viejo.
+function recargar(suave){if(suave!==true)window.__fresco=Date.now();CFG=null;DASH=null;HIST=null;CTAB=null;HTAB=null;HRTAB=null;DTAB=null;REASIG={};REP=null;USERS=null;ACT={};if(suave!==true)badge('load');loadDash();loadHist(function(){renderCitasHoy();if(view==='dash'&&DASH)renderDash();else if(view!=='equipo')lazy(view);});if(view==='equipo'){loadActividad();loadReparto();}}
+// Refresco automático cada 2 min, solo con la pestaña visible y sin interrumpir
+// a quien está usando filtros o editando algo.
+document.addEventListener('input',function(){window.__ultimaInteraccion=Date.now();},true);
+document.addEventListener('click',function(){window.__ultimaInteraccion=Date.now();},true);
+setInterval(function(){if(document.hidden)return;if(Date.now()-(window.__ultimaInteraccion||0)<20000)return;recargar(true);},120000);
 window.recargar=recargar;
 
 /* ===== DASH ===== */
@@ -977,5 +985,5 @@ seg('hrPer',function(d){hrPer=d.p;var cu=document.getElementById('hrCustom');if(
 badge('load');
 loadDash();
 loadHist(function(){if(DASH)renderDash();else renderCitasHoy();});
-setInterval(function(){var el=document.getElementById('actlbl');if(el)el.textContent='act. '+new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});},1000);
+setInterval(function(){var el=document.getElementById('actlbl');if(!el)return;var t=window.__datosTs;if(!t){el.textContent='conectando…';return;}var m=Math.floor((Date.now()-t)/60000);el.textContent='datos de las '+new Date(t).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})+(m>=1?' · hace '+m+' min':'');},5000);
 </script>
