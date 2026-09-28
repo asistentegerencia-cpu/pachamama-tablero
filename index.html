@@ -200,7 +200,7 @@ table.t tr:hover td{background:var(--accent-100)}
         </div>
         <div class="panel">
           <div class="phead"><h2>Cronograma de reparto</h2><span class="n">quién recibe leads nuevos</span></div>
-          <div class="modeToggle"><button id="mGen" class="on" onclick="setMode('gen')">Modo general</button><button id="mCron" onclick="setMode('cron')">Por cronograma</button></div>
+          <div class="modeToggle"><button id="mGen" class="on" onclick="setMode('gen')">Modo general</button><button id="mCron" onclick="setMode('cron')" hidden>Por cronograma</button></div>
           <div id="cronGen">
             <div class="note" style="margin:0 0 10px">Reparto simple: por turnos entre los asesores marcados, cualquier día y hora.</div>
             <div id="genChips" class="loading">Cargando asesores…</div>
@@ -913,7 +913,7 @@ function renderCfg(){
   if(!CFG_H){CFG_H={};CFG_DIAS.forEach(function(d){var t=CFG.horario[d[0]];CFG_H[d[0]]=t?[t[0],t[1]]:null;});}
   if(!CFG_VOL)CFG_VOL=(CFG.fueraHorario.voluntarios||[]).slice();
   var e=CFG_EST||{},uc=e.ultimo_ciclo,h='';
-  h+='<div class="cfgState"><span>Ahora: <b>'+(e.en_horario?'en horario':'fuera de horario')+'</b></span>'+
+  h+='<div class="cfgState">'+(CFG.usarHorario?'<span>Ahora: <b>'+(e.en_horario?'en horario':'fuera de horario')+'</b></span>':'')+
      '<span>Último ciclo: <b>'+(uc?cfgHace(uc.fin):'sin datos')+'</b>'+(uc&&uc.resumen?' · '+uc.resumen.repartidos+' repartidos, '+uc.resumen.reasignados+' reasignados':'')+'</span>'+
      (e.kommo?'<span>Kommo: <b>'+esc(e.kommo.estado||'')+'</b> · frenadas desde el arranque: <b>'+(e.kommo.respuestas_429_desde_el_arranque||0)+'</b></span>':'')+'</div>';
   if(e.kommo&&e.kommo.bloqueado_hasta&&new Date(e.kommo.bloqueado_hasta).getTime()>Date.now())h+='<div class="cfgWarn">Kommo bloqueó las consultas del servidor por exceso. Se reanudan solas a las '+new Date(e.kommo.bloqueado_hasta).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})+'. Mientras tanto, activa el Plan B en Kommo.</div>';
@@ -923,7 +923,10 @@ function renderCfg(){
   if(falt.length)h+='<div class="cfgWarn">En la lista de reparto hay '+falt.length+' que ya no existen o están inactivos: '+falt.map(function(f){return esc(f.entrada)+' ('+f.motivo+')';}).join(', ')+'. Marca de nuevo a los asesores abajo y guarda.</div>';
   var ra=CFG.apagado_en_render||{};
   h+=cfgSw('reparto','Reparto automático',CFG.reparto?'El backend acepta y reparte los leads nuevos.':'Apagado: los leads se quedan en la bandeja. Activa el Plan B en Kommo.',ra.reparto);
-  h+=cfgSw('reloj','Reloj de 10 minutos',CFG.reloj?'Si nadie marca el contacto en 10 min dentro del horario, el lead pasa al siguiente asesor.':'Apagado: no se reasigna ni se enfría ningún lead.',ra.reloj);
+  var tareasOn=CFG.tareas!==false;
+  h+=cfgSw('reloj','Reasignaciones',!CFG.reloj?'Apagado: ningún lead pasa a otro asesor por tiempo.':(tareasOn?'Si el asesor no completa su tarea en 10 min, el lead pasa al siguiente de la lista.':'En pausa: con las tareas apagadas no se puede saber quién contactó, así que no se reasigna.'),ra.reloj);
+  h+=cfgSw('tareas','Tareas «Contáctalo en 10 min»',tareasOn?'Cada lead nuevo o reasignado le crea esta tarea al asesor (le llega aviso a la app).':'Apagado: no se crean tareas. Las reasignaciones también se detienen.',false);
+  if(CFG.usarHorario){
   h+='<div class="cfgRow"><div style="flex:1"><div class="t">Horario del reloj</div><div class="d">Fuera de estas horas el reloj no corre.</div><div style="margin-top:6px">'+
      CFG_DIAS.map(function(d){var t=CFG_H[d[0]];return '<div class="hRow"><b>'+d[1]+'</b><label><input type="checkbox" '+(t?'checked':'')+' onchange="cfgDia('+d[0]+',this.checked)">atiende</label><span>'+(t?'<input type="time" value="'+t[0]+'" onchange="cfgHora('+d[0]+',0,this.value)"> a <input type="time" value="'+(t[1]==='24:00'?'23:59':t[1])+'" onchange="cfgHora('+d[0]+',1,this.value)">':'<span style="color:var(--muted)">sin reloj</span>')+'</span></div>';}).join('')+
      '</div><div style="margin-top:8px;display:flex;gap:10px;align-items:center"><button class="btn" onclick="cfgGuardarHorario()">Guardar horario</button><span class="count" id="cfgHMsg" style="margin-left:0"></span></div></div></div>';
@@ -932,6 +935,8 @@ function renderCfg(){
      '<div style="display:flex;gap:10px;align-items:center;margin-top:8px"><div class="switch'+(fh.voluntariosActivo?' on':'')+'" role="switch" aria-checked="'+!!fh.voluntariosActivo+'" tabindex="0" onclick="cfgVolSw()"><span class="k"></span></div><span style="font-size:12px;font-weight:700">Voluntarios activos</span></div>'+
      '<div class="aBtns">'+(CFG_USERS||[]).filter(function(u){return u.activo!==false;}).map(function(u){var on=CFG_VOL.indexOf(u.id)>=0;return '<button class="aBtn'+(on?' on':'')+'" onclick="cfgVolT('+u.id+')" style="'+(on?'background:var(--accent-100);border-color:var(--accent);color:var(--accent-dark)':'')+'">'+esc(u.name)+'</button>';}).join('')+'</div>'+
      '<div style="margin-top:8px;display:flex;gap:10px;align-items:center"><button class="btn2" style="padding:7px 12px" onclick="cfgGuardarVol()">Guardar voluntarios</button><span class="count" id="cfgVMsg" style="margin-left:0"></span></div></div></div>';
+  }
+  h+='<div class="note" style="margin-top:6px">Quién recibe leads se elige abajo, en «Cronograma de reparto»: marca a los asesores de turno y guarda. Cambia la lista cuando cambie el turno.</div>';
   body.innerHTML=h;
   var u=document.getElementById('cfgUpd');if(u)u.textContent=CFG.desde_nota?'guardado en Kommo':'valores por defecto';
 }
