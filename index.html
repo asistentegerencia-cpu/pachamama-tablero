@@ -148,11 +148,12 @@ table.t tr:hover td{background:var(--accent-100)}
 .previewbar b{color:var(--accent-300)}
 .mtop{display:none}
 @media(max-width:900px){
-  .app{grid-template-columns:1fr}.side{display:none}
+  .app{grid-template-columns:minmax(0,1fr)}.side{display:none}
   .mtop{display:flex;gap:6px;overflow-x:auto;background:#fff;border-bottom:2px solid var(--line-strong);position:sticky;top:0;z-index:5;padding:8px 10px}
   .mtop button{flex:0 0 auto;border:1px solid var(--line);background:#fff;font-family:inherit;font-size:12px;font-weight:600;padding:7px 11px;color:var(--ink)}
   .mtop button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .top h1{font-size:22px}.hide-sm{display:none!important}
+  .seg{flex-wrap:wrap;max-width:100%}.seg button{border-bottom:1px solid var(--line)}.two{grid-template-columns:minmax(0,1fr)}
 }
 </style>
 
@@ -252,6 +253,28 @@ table.t tr:hover td{background:var(--accent-100)}
         <div class="panel"><div class="phead"><h2>Historial de atenciones</h2><span class="n">horario Perú (UTC−5)</span></div><div class="tw" id="histBody"></div><div class="note">Etapa como pasos: Lead · Contactado · Meet · Presentado · Cliente.</div></div>
       </section>
 
+      <section class="view" id="v-perd">
+        <div class="filt">
+          <span class="seg" id="pFecha"><button data-f="hoy">Hoy</button><button data-f="7">7 días</button><button data-f="mes" class="on">Mes actual</button><button data-f="30">30 días</button><button data-f="90">90 días</button><button data-f="custom">Rango…</button></span>
+          <span id="pCustom" hidden style="display:inline-flex;gap:6px;align-items:center"><input type="date" id="pDesde" onchange="reloadPerd()"><span style="color:var(--muted)">→</span><input type="date" id="pHasta" onchange="reloadPerd()"></span>
+          <details class="ms" id="pCampMs"><summary id="pCampSum">Todas las campañas</summary><div class="ms-menu" id="pCampMenu"></div></details>
+          <details class="ms" id="pAseMs"><summary id="pAseSum">Todos los asesores</summary><div class="ms-menu" id="pAseMenu"></div></details>
+          <button class="btn2" style="padding:7px 11px" onclick="limpiarPerd()">Limpiar filtros</button>
+          <span class="count mono" id="pCount"></span>
+        </div>
+        <div class="note" style="margin:0 0 10px">Leads que <b>entraron</b> en el período y dónde están hoy. Elige varias campañas a la vez para sumarlas.</div>
+        <div class="grid" id="pKpis" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px"></div>
+        <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Por campaña</h2><span class="n">% sobre los leads de cada campaña</span></div><div class="tw" id="pCampT"></div></div>
+        <div class="grid two" style="margin-bottom:12px">
+          <div class="panel"><div class="phead"><h2 class="g-bad">Venta Perdido</h2><span class="n" id="pPerN"></span></div><div class="flbl" style="margin-bottom:4px">Motivo de pérdida</div><div id="pMotivos"></div><div class="flbl" style="margin:12px 0 4px">Dónde se cayó (etapa anterior)</div><div id="pPrevPer"></div></div>
+          <div class="panel"><div class="phead"><h2 class="g-warn">No responde</h2><span class="n" id="pNrN"></span></div><div class="flbl" style="margin-bottom:4px">Dónde se cayó (etapa anterior)</div><div id="pPrevNr"></div><div class="note">No responde no lleva motivo: el lead dejó de contestar.</div></div>
+        </div>
+        <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Por asesor</h2><span class="n">asesor responsable hoy</span></div><div class="tw" id="pAseT"></div></div>
+        <div class="panel"><div class="phead"><h2>Leads</h2><span class="n" id="pListN"></span></div>
+          <div class="filt"><span class="seg" id="pLista"><button data-l="perdido" class="on">Venta Perdido</button><button data-l="no_responde">No responde</button></span><input id="pQ" placeholder="Buscar lead…" style="width:150px" oninput="paintPerdList()"></div>
+          <div class="tw" id="pList"></div><div class="note" id="pNota"></div></div>
+      </section>
+
       <section class="view" id="v-horas">
         <div class="filt"><span class="flbl">Periodo</span><span class="seg" id="hrPer"><button data-p="mes" class="on">Mes actual</button><button data-p="30">30 días</button><button data-p="7">7 días</button><button data-p="">Todo</button><button data-p="custom">Rango…</button></span><span id="hrCustom" hidden style="display:inline-flex;gap:6px;align-items:center"><input type="date" id="hrDesde" onchange="reloadHrtab()"><span style="color:var(--muted)">→</span><input type="date" id="hrHasta" onchange="reloadHrtab()"></span><span class="flbl">Hora</span><select id="hrHoraD" onchange="renderHoras()"></select><span style="color:var(--muted)">a</span><select id="hrHoraH" onchange="renderHoras()"></select><details class="ms" id="hrCampMs"><summary id="hrCampSum">Todas las campañas</summary><div class="ms-menu" id="hrCampMenu"></div></details><span class="count" id="hrLbl"></span></div>
         <div class="grid kpis" id="hrFranja" style="margin-bottom:12px"></div>
@@ -319,7 +342,7 @@ table.t tr:hover td{background:var(--accent-100)}
   window.fetch=function(input,init){var url=(typeof input==="string")?input:((input&&input.url)||"");if(url.indexOf(BACKEND)===-1)return _f(input,init);if(window.__fresco&&Date.now()-window.__fresco<20000&&typeof input==="string"&&!(init&&init.method&&init.method!=="GET")){input+=(input.indexOf("?")>=0?"&":"?")+"fresco=1";}init=init||{};var h=new Headers(init.headers||{});h.set("X-API-Key",clave());init.headers=h;return _f(input,init).then(function(r){if(r.status===401){try{localStorage.removeItem(STORE);}catch(e){}alert("Clave incorrecta o vencida. Recarga e ingrésala de nuevo.");}return r;});};
 })();
 var B="https://pachamama-backend-v0v0.onrender.com";
-var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config",atn:B+"/api/reactivacion/atencion",n8n:B+"/api/n8n/errores"};
+var EP={dash:B+"/api/dashboard",hist:B+"/api/historial",reasig:B+"/api/reasignaciones?dias=60",act:B+"/api/actividad",users:B+"/api/usuarios",reparto:B+"/api/sla/reparto-config",atn:B+"/api/reactivacion/atencion",n8n:B+"/api/n8n/errores",perd:B+"/api/perdidos"};
 var META_LOTES=60,META_LEADS_DIA=30,SLA_V=10,SLA_R=30,META_AGENDA=0.90;
 var DASH=null,HIST=null,REASIG={},USERS=null,REP=null,ACT={},actDias="hoy",actKey="dias=hoy",view="dash";
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -330,7 +353,7 @@ function hhmm(iso){if(!iso)return "—";try{return new Date(iso).toLocaleTimeStr
 function bandColor(s){return s==='verde'?'var(--ok)':s==='amarillo'?'var(--warn)':s==='rojo'?'var(--bad)':'var(--muted)';}
 
 /* ===== nav ===== */
-var NAV=[["dash","Tablero","Resultados del mes de un vistazo"],["equipo","Equipo y reparto","Actividad de cuentas y cronograma de reparto"],["citas","Citas","Agenda del día y por asesor"],["hist","Historial","Atenciones y tiempos de respuesta"],["horas","Horarios de entrada","Cuándo llegan los leads"],["react","Reactivación","Difusiones de WhatsApp"],["n8n","Errores de n8n","Fallos de las automatizaciones y su estado"]];
+var NAV=[["dash","Tablero","Resultados del mes de un vistazo"],["equipo","Equipo y reparto","Actividad de cuentas y cronograma de reparto"],["citas","Citas","Agenda del día y por asesor"],["hist","Historial","Atenciones y tiempos de respuesta"],["horas","Horarios de entrada","Cuándo llegan los leads"],["perd","Perdidos","Venta Perdido y No responde por campaña"],["react","Reactivación","Difusiones de WhatsApp"],["n8n","Errores de n8n","Fallos de las automatizaciones y su estado"]];
 var navEl=document.getElementById('nav'),mnavEl=document.getElementById('mnav');
 NAV.forEach(function(n){var b=document.createElement('button');b.innerHTML='<span class="dot"></span>'+n[1];b.onclick=function(){go(n[0])};b.dataset.v=n[0];navEl.appendChild(b);var m=document.createElement('button');m.textContent=n[1];m.onclick=function(){go(n[0])};m.dataset.v=n[0];mnavEl.appendChild(m);});
 function go(v){view=v;document.querySelectorAll('.view').forEach(function(s){s.classList.remove('on')});document.getElementById('v-'+v).classList.add('on');document.querySelectorAll('.nav button,.mtop button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});var n=NAV.find(function(x){return x[0]===v});document.getElementById('h1').textContent=n[1];document.getElementById('sub').textContent=n[2];window.scrollTo(0,0);lazy(v);}
@@ -339,6 +362,7 @@ document.querySelector('.nav button').classList.add('on');document.querySelector
 function lazy(v){
   if(v==='hist'){loadHtab(function(){renderHist();});return;}
   if(v==='horas'){loadHrtab(function(){renderHoras();});return;}
+  if(v==='perd'){loadPerd(function(){renderPerd();});return;}
   if(v==='citas'){loadCtab(function(){renderCitas();});return;}
   if(v==='dash'){if(!HIST){loadHist(function(){renderDash();});}else{renderDash();}return;}
   if(v==='react'){loadReact(function(){renderReact();});return;}
@@ -410,7 +434,7 @@ function loadReparto(){loadCfg();if(REP&&USERS){renderGen();return;}Promise.all(
 // suave=true: refresco automático (sin pedir datos frescos a Kommo ni mostrar "conectando").
 // Se vacían TODOS los datos (también Citas, Historial y Horarios con otro período),
 // así nada queda viejo.
-function recargar(suave){if(suave!==true)window.__fresco=Date.now();CFG=null;DASH=null;HIST=null;CTAB=null;HTAB=null;HRTAB=null;DTAB=null;REASIG={};REP=null;USERS=null;ACT={};if(suave!==true)badge('load');loadDash();loadHist(function(){renderCitasHoy();if(view==='dash'&&DASH)renderDash();else if(view!=='equipo')lazy(view);});if(view==='equipo'){loadActividad();loadReparto();}}
+function recargar(suave){if(suave!==true)window.__fresco=Date.now();CFG=null;DASH=null;HIST=null;CTAB=null;HTAB=null;HRTAB=null;DTAB=null;PERD=null;REASIG={};REP=null;USERS=null;ACT={};if(suave!==true)badge('load');loadDash();loadHist(function(){renderCitasHoy();if(view==='dash'&&DASH)renderDash();else if(view!=='equipo')lazy(view);});if(view==='equipo'){loadActividad();loadReparto();}}
 // Refresco automático cada 2 min, solo con la pestaña visible y sin interrumpir
 // a quien está usando filtros o editando algo.
 document.addEventListener('input',function(){window.__ultimaInteraccion=Date.now();},true);
@@ -978,6 +1002,63 @@ function renderCron(){
 seg('dFecha',function(d){dF.fecha=d.f;var cu=document.getElementById('dCustom');if(cu)cu.hidden=(d.f!=='custom');reloadDtab();});
 seg('hFecha',function(d){hF.fecha=d.f;var cu=document.getElementById('hCustom');if(cu)cu.hidden=(d.f!=='custom');reloadHtab();});
 seg('citFecha',function(d){cF.fecha=d.f;var cu=document.getElementById('cCustom');if(cu)cu.hidden=(d.f!=='custom');renderCitas();});
+/* ===== PERDIDOS (Venta Perdido y No responde por campaña) ===== */
+var PERD=null,pF={fecha:'mes',lista:'perdido',max:100};
+var KOMMO_LEAD='https://asistentegerenciaparadiseinmueblescom.kommo.com/leads/detail/';
+function perdRange(){var nowS=Math.floor(Date.now()/1000),f=pF.fecha;
+  if(f==='hoy'){var d=new Date();d.setHours(0,0,0,0);return {desde:Math.floor(d.getTime()/1000),hasta:nowS};}
+  if(f==='7'||f==='30'||f==='90')return {desde:nowS-(+f)*86400,hasta:nowS};
+  if(f==='custom'){var vd=(document.getElementById('pDesde')||{}).value,vh=(document.getElementById('pHasta')||{}).value;return {desde:vd?Math.floor(new Date(vd+'T00:00:00').getTime()/1000):monthStartSec(),hasta:vh?Math.floor(new Date(vh+'T23:59:59').getTime()/1000):nowS};}
+  return {desde:monthStartSec(),hasta:nowS};}
+function loadPerd(cb){
+  if(PERD){cb&&cb();return;}
+  var r=perdRange();document.getElementById('pCampT').innerHTML='<div class="loading">Cargando el período…</div>';
+  fetch(EP.perd+'?desde='+r.desde+'&hasta='+r.hasta).then(function(x){return x.json();}).then(function(j){if(j&&j.error)throw new Error(j.error);PERD=j;cb&&cb();})
+    .catch(function(e){PERD=null;document.getElementById('pCampT').innerHTML='<div class="empty">No se pudo cargar: '+esc(e.message||'error')+'</div>';});}
+function reloadPerd(){PERD=null;loadPerd(function(){renderPerd();});}
+window.reloadPerd=reloadPerd;
+function limpiarPerd(){['pCampMenu','pAseMenu'].forEach(function(id){document.querySelectorAll('#'+id+' input').forEach(function(i){i.checked=false;});});var q=document.getElementById('pQ');if(q)q.value='';renderPerd();}
+window.limpiarPerd=limpiarPerd;
+function perdCuenta(fs){var r={leads:fs.length,perdido:0,no_responde:0,ganado:0,activo:0};fs.forEach(function(f){r[f.estado]=(r[f.estado]||0)+1;});return r;}
+function perdFiltradas(){if(!PERD||!PERD.filas)return [];var cs=msGet('pCampMenu'),as=msGet('pAseMenu');return PERD.filas.filter(function(f){return (!cs.length||cs.indexOf(f.campania)>=0)&&(!as.length||as.indexOf(f.asesor)>=0);});}
+function perdBarras(el,fs,campo,color){var c={};fs.forEach(function(f){var k=f[campo]||'Sin dato';c[k]=(c[k]||0)+1;});var ks=Object.keys(c).sort(function(a,b){return c[b]-c[a];});
+  document.getElementById(el).innerHTML=ks.length?ks.map(function(k){var p=pctv(c[k],fs.length);return '<div class="drow"><span class="nm" title="'+esc(k)+'">'+esc(k)+'</span><span class="rail"><span class="fill" style="width:'+p+'%;background:'+color+'"></span></span><span class="pc mono" style="width:86px;white-space:nowrap">'+c[k]+' · '+p+'%</span></div>';}).join(''):'<div class="empty">Ninguno en este filtro.</div>';}
+function perdPctCelda(n,b,cls){return '<td class="mono">'+n+'</td><td class="mono '+cls+'">'+pctv(n,b)+'%</td>';}
+function perdTabla(el,titulo,fs,campo){var g={};fs.forEach(function(f){(g[f[campo]]=g[f[campo]]||[]).push(f);});var ks=Object.keys(g).sort(function(a,b){return g[b].length-g[a].length;});
+  var h='<table class="t" style="min-width:620px"><thead><tr><th>'+titulo+'</th><th>Leads</th><th>Venta perdido</th><th>%</th><th>No responde</th><th>%</th><th>Ganados</th><th>Siguen activos</th></tr></thead><tbody>';
+  ks.forEach(function(k){var r=perdCuenta(g[k]);h+='<tr><td class="main">'+esc(k)+'</td><td class="mono">'+r.leads+'</td>'+perdPctCelda(r.perdido,r.leads,'g-bad')+perdPctCelda(r.no_responde,r.leads,'g-warn')+'<td class="mono g-ok">'+r.ganado+'</td><td class="mono">'+r.activo+'</td></tr>';});
+  if(ks.length>1){var t=perdCuenta(fs);h+='<tr><td class="main">Total</td><td class="mono"><b>'+t.leads+'</b></td>'+perdPctCelda(t.perdido,t.leads,'g-bad')+perdPctCelda(t.no_responde,t.leads,'g-warn')+'<td class="mono g-ok">'+t.ganado+'</td><td class="mono">'+t.activo+'</td></tr>';}
+  document.getElementById(el).innerHTML=ks.length?h+'</tbody></table>':'<div class="empty">No hay leads en este filtro.</div>';}
+function fechaCorta(t){if(!t)return '—';try{return new Date(t*1000).toLocaleDateString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'short'});}catch(e){return '—';}}
+function renderPerd(){
+  if(!PERD||!PERD.filas)return;
+  var camps={},ases={};PERD.filas.forEach(function(f){camps[f.campania]=(camps[f.campania]||0)+1;ases[f.asesor]=1;});
+  if(!PERD._ms){PERD._ms=1;msFill('pCampMenu',Object.keys(camps).sort(function(a,b){return camps[b]-camps[a];}));msFill('pAseMenu',Object.keys(ases).sort());
+  document.querySelectorAll('#pCampMenu input,#pAseMenu input').forEach(function(i){i.onchange=renderPerd;});}
+  msSum('pCampSum','pCampMenu','Todas las campañas');msSum('pAseSum','pAseMenu','Todos los asesores');
+  var fs=perdFiltradas(),r=perdCuenta(fs);
+  document.getElementById('pCount').textContent=r.leads+' leads';
+  function k(cls,lbl,n,s){return '<div class="card kpi '+cls+'"><div class="lbl">'+lbl+'</div><div class="num">'+n+'</div><div class="s">'+s+'</div></div>';}
+  document.getElementById('pKpis').innerHTML=k('acc','Leads que entraron',r.leads,'en el período')+k('bad','Venta Perdido',r.perdido,pctv(r.perdido,r.leads)+'% de los leads')+k('warn','No responde',r.no_responde,pctv(r.no_responde,r.leads)+'% de los leads')+k('ok','Ganados',r.ganado,pctv(r.ganado,r.leads)+'%')+k('','Siguen activos',r.activo,pctv(r.activo,r.leads)+'% en el embudo');
+  perdTabla('pCampT','Campaña',fs,'campania');perdTabla('pAseT','Asesor',fs,'asesor');
+  var per=fs.filter(function(f){return f.estado==='perdido';}),nr=fs.filter(function(f){return f.estado==='no_responde';});
+  document.getElementById('pPerN').textContent=per.length+' leads';document.getElementById('pNrN').textContent=nr.length+' leads';
+  perdBarras('pMotivos',per,'motivo','var(--bad)');
+  if(PERD.con_etapa_previa){perdBarras('pPrevPer',per,'etapa_previa','var(--bad)');perdBarras('pPrevNr',nr,'etapa_previa','var(--warn)');}
+  else{['pPrevPer','pPrevNr'].forEach(function(id){document.getElementById(id).innerHTML='<div class="empty">Solo disponible para los últimos 100 días.</div>';});}
+  paintPerdList();}
+function paintPerdList(){
+  if(!PERD||!PERD.filas)return;var q=((document.getElementById('pQ')||{}).value||'').toLowerCase();
+  var fs=perdFiltradas().filter(function(f){return f.estado===pF.lista&&(!q||String(f.nombre).toLowerCase().indexOf(q)>=0||String(f.id).indexOf(q)>=0);});
+  fs.sort(function(a,b){return (b.fecha_caida||b.entrada||0)-(a.fecha_caida||a.entrada||0);});
+  var MAX=pF.max,esP=pF.lista==='perdido';
+  document.getElementById('pListN').textContent=fs.length+' leads'+(fs.length>MAX?' · se muestran '+MAX:'');
+  document.getElementById('pList').innerHTML=fs.length?'<table class="t" style="min-width:720px"><thead><tr><th>Lead</th><th>Campaña</th><th>Asesor</th><th>Entró</th><th>Etapa anterior</th>'+(esP?'<th>Motivo</th>':'')+'<th>Cayó</th></tr></thead><tbody>'+fs.slice(0,MAX).map(function(f){
+    return '<tr><td class="main"><a href="'+KOMMO_LEAD+encodeURIComponent(f.id)+'" target="_blank" rel="noopener" style="color:var(--accent-dark)">'+esc(f.nombre||('#'+f.id))+'</a></td><td>'+esc(f.campania)+'</td><td>'+esc(f.asesor)+'</td><td class="mono">'+fechaCorta(f.entrada)+'</td><td>'+esc(f.etapa_previa||'—')+'</td>'+(esP?'<td>'+esc(f.motivo||'—')+'</td>':'')+'<td class="mono">'+fechaCorta(f.fecha_caida)+'</td></tr>';}).join('')+'</tbody></table>'+(fs.length>MAX?'<button class="btn2" style="padding:7px 11px;margin-top:8px" onclick="pF.max+=200;paintPerdList()">Ver más</button>':''):'<div class="empty">No hay leads en este filtro.</div>';
+  document.getElementById('pNota').textContent='El nombre abre el lead en Kommo. «Sin dato» en etapa anterior: el lead entró directo a esa etapa o cayó antes de que empezara el registro.';}
+window.paintPerdList=paintPerdList;window.pF=pF;
+seg('pFecha',function(d){pF.fecha=d.f;var cu=document.getElementById('pCustom');if(cu)cu.hidden=(d.f!=='custom');if(d.f!=='custom')reloadPerd();});
+seg('pLista',function(d){pF.lista=d.l;pF.max=100;paintPerdList();});
 seg('hrPer',function(d){hrPer=d.p;var cu=document.getElementById('hrCustom');if(cu)cu.hidden=(d.p!=='custom');renderHoras();});
 
 /* ===== init ===== */
