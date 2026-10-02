@@ -1029,7 +1029,7 @@ function perdTabla(el,titulo,fs,campo){var g={};fs.forEach(function(f){(g[f[camp
   ks.forEach(function(k){var r=perdCuenta(g[k]);h+='<tr><td class="main">'+esc(k)+'</td><td class="mono">'+r.leads+'</td>'+perdPctCelda(r.perdido,r.leads,'g-bad')+perdPctCelda(r.no_responde,r.leads,'g-warn')+'<td class="mono g-ok">'+r.ganado+'</td><td class="mono">'+r.activo+'</td></tr>';});
   if(ks.length>1){var t=perdCuenta(fs);h+='<tr><td class="main">Total</td><td class="mono"><b>'+t.leads+'</b></td>'+perdPctCelda(t.perdido,t.leads,'g-bad')+perdPctCelda(t.no_responde,t.leads,'g-warn')+'<td class="mono g-ok">'+t.ganado+'</td><td class="mono">'+t.activo+'</td></tr>';}
   document.getElementById(el).innerHTML=ks.length?h+'</tbody></table>':'<div class="empty">No hay leads en este filtro.</div>';}
-function fechaCorta(t){if(!t)return '—';try{return new Date(t*1000).toLocaleDateString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'short'});}catch(e){return '—';}}
+function fechaUnix(t){if(!t)return '—';try{return new Date(t*1000).toLocaleDateString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'short'});}catch(e){return '—';}}
 function renderPerd(){
   if(!PERD||!PERD.filas)return;
   var camps={},ases={};PERD.filas.forEach(function(f){camps[f.campania]=(camps[f.campania]||0)+1;ases[f.asesor]=1;});
@@ -1054,7 +1054,7 @@ function paintPerdList(){
   var MAX=pF.max,esP=pF.lista==='perdido';
   document.getElementById('pListN').textContent=fs.length+' leads'+(fs.length>MAX?' · se muestran '+MAX:'');
   document.getElementById('pList').innerHTML=fs.length?'<table class="t" style="min-width:720px"><thead><tr><th>Lead</th><th>Campaña</th><th>Asesor</th><th>Entró</th><th>Etapa anterior</th>'+(esP?'<th>Motivo</th>':'')+'<th>Cayó</th></tr></thead><tbody>'+fs.slice(0,MAX).map(function(f){
-    return '<tr><td class="main"><a href="'+KOMMO_LEAD+encodeURIComponent(f.id)+'" target="_blank" rel="noopener" style="color:var(--accent-dark)">'+esc(f.nombre||('#'+f.id))+'</a></td><td>'+esc(f.campania)+'</td><td>'+esc(f.asesor)+'</td><td class="mono">'+fechaCorta(f.entrada)+'</td><td>'+esc(f.etapa_previa||'—')+'</td>'+(esP?'<td>'+esc(f.motivo||'—')+'</td>':'')+'<td class="mono">'+fechaCorta(f.fecha_caida)+'</td></tr>';}).join('')+'</tbody></table>'+(fs.length>MAX?'<button class="btn2" style="padding:7px 11px;margin-top:8px" onclick="pF.max+=200;paintPerdList()">Ver más</button>':''):'<div class="empty">No hay leads en este filtro.</div>';
+    return '<tr><td class="main"><a href="'+KOMMO_LEAD+encodeURIComponent(f.id)+'" target="_blank" rel="noopener" style="color:var(--accent-dark)">'+esc(f.nombre||('#'+f.id))+'</a></td><td>'+esc(f.campania)+'</td><td>'+esc(f.asesor)+'</td><td class="mono">'+fechaUnix(f.entrada)+'</td><td>'+esc(f.etapa_previa||'—')+'</td>'+(esP?'<td>'+esc(f.motivo||'—')+'</td>':'')+'<td class="mono">'+fechaUnix(f.fecha_caida)+'</td></tr>';}).join('')+'</tbody></table>'+(fs.length>MAX?'<button class="btn2" style="padding:7px 11px;margin-top:8px" onclick="pF.max+=200;paintPerdList()">Ver más</button>':''):'<div class="empty">No hay leads en este filtro.</div>';
   document.getElementById('pNota').textContent='El nombre abre el lead en Kommo. «Sin dato» en etapa anterior: el lead entró directo a esa etapa o cayó antes de que empezara el registro.';}
 window.paintPerdList=paintPerdList;window.pF=pF;
 seg('pFecha',function(d){pF.fecha=d.f;var cu=document.getElementById('pCustom');if(cu)cu.hidden=(d.f!=='custom');if(d.f!=='custom')reloadPerd();});
