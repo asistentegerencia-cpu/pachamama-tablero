@@ -188,6 +188,7 @@ table.t tr:hover td{background:var(--accent-100)}
             <div class="panel"><div class="phead" style="justify-content:space-between"><h2>Citas de hoy</h2><button class="btn2" style="padding:5px 9px;font-size:10.5px" onclick="go('citas')">Ver todas →</button></div><div id="citasHoy"></div></div>
           </div>
         </div>
+        <div class="panel" style="margin-bottom:12px"><div class="phead"><h2>Ventas del período</h2><span class="n" id="ventasN"></span></div><div class="tw" id="ventasT"></div></div>
         <div class="panel"><div class="phead"><h2>Cola de leads · sin atender</h2><span class="n">meta de 1ª respuesta: 10 min</span></div><div class="tw" id="cola"></div></div>
       </section>
 
@@ -470,6 +471,9 @@ function renderDash(){
   if(!DASH)return;
   dF.ase=(document.getElementById('dAse')||{}).value||'';dF.camp=(document.getElementById('dCamp')||{}).value||'';
   var m=DASH.meta_mensual||{},lotes=(m.lotes_vendidos!=null?m.lotes_vendidos:0);
+  // Ventas por FECHA DE VENTA dentro del período del filtro (y asesor/campaña)
+  var VP=null,perTxt={hoy:'hoy','7':'últimos 7 días',mes:'este mes','30':'últimos 30 días','':'desde el inicio',custom:'en el rango'}[dF.fecha]||'en el período';
+  if(DASH.ventas){var rg=dRange();VP=DASH.ventas.filter(function(v){return v.venta&&v.venta>=rg.desde&&v.venta<=rg.hasta&&(!dF.ase||v.asesor===dF.ase)&&(!dF.camp||v.campania===dF.camp);});lotes=VP.length;}
   var iniHoy=(function(){var d0=new Date();d0.setHours(0,0,0,0);return d0.getTime();})();
   var leadsHoy=(HIST&&HIST.filas)?HIST.filas.filter(function(f){var t=tISO(f.entrada);return t&&t>=iniHoy&&f.campania&&f.campania!=='Directo / mensaje';}).length:(DASH.leads_hoy!=null?DASH.leads_hoy:0);
   var FF=dashFilas();
@@ -478,7 +482,7 @@ function renderDash(){
   var cola=DASH.cola||[];var now=Date.now();
   var mas30=cola.filter(function(c){var t=tISO(c.entrada||c.created_at);return t&&(now-t)/60000>30;}).length;
   var k=[
-    ['warn','Clientes',lotes,'de '+META_LOTES+' meta',pctv(lotes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-lotes)],
+    [(lotes?'ok':'warn'),'Clientes',lotes,(dF.fecha==='mes'?'de '+META_LOTES+' meta':perTxt),(dF.fecha==='mes'?pctv(lotes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-lotes):'ventas con fecha de venta '+perTxt)],
     ['warn','Leads hoy',leadsHoy,'meta '+META_LEADS_DIA+'/día · solo campañas',pctv(leadsHoy,META_LEADS_DIA)+'% de la meta diaria'],
     [(slaPct!=null&&slaPct>=70?'ok':'warn'),'Atención a tiempo',(slaPct!=null?slaPct:'—'),(slaPct!=null?'%':''),slaSub],
     [(cola.length?'bad':'ok'),'Leads sin atender',cola.length,'ahora',mas30+' con más de 30 min']
@@ -491,12 +495,14 @@ function renderDash(){
     var total=FF.length;
     function idxOf(nm){if(nm==='Contactado')return 1;if(nm==='Agenda')return 2;if(nm==='Meet')return 3;if(nm==='Separación')return 4;if(nm==='Venta concretada')return 5;return 0;}
     var reach=[total,0,0,0,0,0],noResp=0,perd=0,firm=0;
-    FF.forEach(function(x){var nm=x.etapa_actual||'';if(nm==='No responde')noResp++;else if(nm==='Venta Perdido'||nm==='143'||nm==='Perdido')perd++;if(nm==='Venta concretada')firm++;var kk=idxOf(nm);for(var j=1;j<=kk;j++)reach[j]++;});
+    FF.forEach(function(x){var nm=x.etapa_actual||'';if(nm==='No responde')noResp++;else if(nm==='Venta Perdido'||nm==='143'||nm==='Perdido')perd++;if(!VP&&nm==='Venta concretada')firm++;var kk=idxOf(nm);for(var j=1;j<=kk;j++)reach[j]++;});
+    if(VP)firm=VP.length;
     var rows=[['Leads',total,null],['Contactado',reach[1],0.80],['Meet agendado',reach[2],META_AGENDA],['Meet presentado',reach[3],0.90],['Cliente',reach[5],0.20]];
     document.getElementById('embudo').innerHTML=rows.map(function(r,i){var cnt=r[1],p=total?Math.round(cnt/total*100):0,meta=r[2],ok=meta==null?null:(cnt/(total||1))>=meta;var col=i===0?'var(--accent)':(ok===false?'var(--bad)':ok===true?'var(--ok)':'var(--accent-300)');
       return '<div class="erow"><div class="t"><span class="dd"><span class="sq" style="background:'+col+'"></span>'+r[0]+'</span><span class="nt">'+p+'%'+(meta!=null?' · meta '+Math.round(meta*100)+'%':'')+'</span></div><div style="display:flex;align-items:center;gap:8px"><div class="rail '+(i===0?'base':'')+'" style="flex:1"><div class="fill" style="width:'+p+'%;background:'+col+'"></div></div><span class="v">'+cnt+'</span></div></div>';}).join('')
       +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)"><div><div class="lbl" style="font-size:10px">No responde</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--warn)">'+noResp+'</div></div><div><div class="lbl" style="font-size:10px">Contratos firmados</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--ok)">'+firm+'</div></div><div><div class="lbl" style="font-size:10px">Perdidos</div><div class="mono" style="font-size:18px;font-weight:700;color:var(--bad)">'+perd+'</div></div></div>';
   }
+  renderVentas(VP,perTxt);
   document.getElementById('embFoot').innerHTML='Embudo de los <b>'+(FF?FF.length:0)+'</b> leads del filtro · Meet agendado saludable con <b>'+Math.round(META_AGENDA*100)+'% o más</b>.';
   // desempeño (conversión a cliente, sobre el FILTRO)
   var g={};(FF||[]).forEach(function(x){var a=x.asesor_final||'—';g[a]=g[a]||{n:0,c:0};g[a].n++;if(x.etapa_actual==='Venta concretada')g[a].c++;});
@@ -507,6 +513,15 @@ function renderDash(){
   var cb=cola.length?('<table class="t" style="min-width:520px"><thead><tr><th>Lead</th><th>Asesor</th><th style="text-align:right">Espera</th></tr></thead><tbody>'+cola.map(function(c){var t=tISO(c.entrada||c.created_at);var min=t?Math.floor((now-t)/60000):0;var s=min<SLA_V?'verde':min<SLA_R?'amarillo':'rojo';return '<tr><td class="main">'+esc(c.etiqueta||c.nombre||c.id||'—')+'</td><td>'+esc(c.asesor||'—')+'</td><td class="mono" style="text-align:right"><span class="sdot" style="justify-content:flex-end"><span class="d" style="background:'+bandColor(s)+'"></span>'+min+' min</span></td></tr>';}).join('')+'</tbody></table>'):'<div class="note">Todo dentro de SLA. Cola limpia.</div>';
   document.getElementById('cola').innerHTML=cb;
   renderCitasHoy();
+}
+function renderVentas(VP,perTxt){
+  var el=document.getElementById('ventasT');if(!el)return;
+  if(!VP){el.innerHTML='<div class="note">Esperando datos del servidor…</div>';return;}
+  document.getElementById('ventasN').textContent=VP.length+(VP.length===1?' venta ':' ventas ')+perTxt;
+  var hayMonto=VP.some(function(v){return v.monto>0;});
+  el.innerHTML=VP.length?'<table class="t" style="min-width:640px"><thead><tr><th>Cliente</th><th>N° de lead</th><th>Campaña</th><th>Ingresó</th><th>Venta</th><th>Asesor</th>'+(hayMonto?'<th style="text-align:right">Monto</th>':'')+'</tr></thead><tbody>'+VP.map(function(v){
+    return '<tr><td class="main">'+esc(v.nombre)+'</td><td class="mono"><a href="'+KOMMO_LEAD+encodeURIComponent(v.id)+'" target="_blank" rel="noopener" style="color:var(--accent-dark)">#'+esc(v.id)+'</a></td><td>'+esc(v.campania)+'</td><td class="mono">'+fechaUnix(v.entrada)+'</td><td class="mono">'+fechaUnix(v.venta)+'</td><td>'+esc(v.asesor)+'</td>'+(hayMonto?'<td class="mono" style="text-align:right">'+(v.monto?v.monto.toLocaleString('es-PE'):'—')+'</td>':'')+'</tr>';}).join('')+'</tbody></table>'
+    :'<div class="empty">No hay ventas '+esc(perTxt)+'. Cuando un lead pase a «Venta concretada» aparecerá aquí.</div>';
 }
 function renderCitasHoy(){
   var el=document.getElementById('citasHoy');if(!el)return;
