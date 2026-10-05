@@ -471,9 +471,9 @@ function renderDash(){
   if(!DASH)return;
   dF.ase=(document.getElementById('dAse')||{}).value||'';dF.camp=(document.getElementById('dCamp')||{}).value||'';
   var m=DASH.meta_mensual||{},lotes=(m.lotes_vendidos!=null?m.lotes_vendidos:0);
-  // Ventas por FECHA DE VENTA dentro del período del filtro (y asesor/campaña)
+  // Ventas de los leads que ENTRARON en el período del filtro (y asesor/campaña)
   var VP=null,perTxt={hoy:'hoy','7':'últimos 7 días',mes:'este mes','30':'últimos 30 días','':'desde el inicio',custom:'en el rango'}[dF.fecha]||'en el período';
-  if(DASH.ventas){var rg=dRange();VP=DASH.ventas.filter(function(v){return v.venta&&v.venta>=rg.desde&&v.venta<=rg.hasta&&(!dF.ase||v.asesor===dF.ase)&&(!dF.camp||v.campania===dF.camp);});lotes=VP.length;}
+  if(DASH.ventas){var rg=dRange();VP=DASH.ventas.filter(function(v){return v.entrada&&v.entrada>=rg.desde&&v.entrada<=rg.hasta&&(!dF.ase||v.asesor===dF.ase)&&(!dF.camp||v.campania===dF.camp);});lotes=VP.length;}
   var iniHoy=(function(){var d0=new Date();d0.setHours(0,0,0,0);return d0.getTime();})();
   var leadsHoy=(HIST&&HIST.filas)?HIST.filas.filter(function(f){var t=tISO(f.entrada);return t&&t>=iniHoy&&f.campania&&f.campania!=='Directo / mensaje';}).length:(DASH.leads_hoy!=null?DASH.leads_hoy:0);
   var FF=dashFilas();
@@ -482,7 +482,7 @@ function renderDash(){
   var cola=DASH.cola||[];var now=Date.now();
   var mas30=cola.filter(function(c){var t=tISO(c.entrada||c.created_at);return t&&(now-t)/60000>30;}).length;
   var k=[
-    [(lotes?'ok':'warn'),'Clientes',lotes,(dF.fecha==='mes'?'de '+META_LOTES+' meta':perTxt),(dF.fecha==='mes'?pctv(lotes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-lotes):'ventas con fecha de venta '+perTxt)],
+    [(lotes?'ok':'warn'),'Clientes',lotes,(dF.fecha==='mes'?'de '+META_LOTES+' meta':perTxt),(dF.fecha==='mes'?pctv(lotes,META_LOTES)+'% de la meta · faltan '+Math.max(0,META_LOTES-lotes):'ventas de leads que entraron '+perTxt)],
     ['warn','Leads hoy',leadsHoy,'meta '+META_LEADS_DIA+'/día · solo campañas',pctv(leadsHoy,META_LEADS_DIA)+'% de la meta diaria'],
     [(slaPct!=null&&slaPct>=70?'ok':'warn'),'Atención a tiempo',(slaPct!=null?slaPct:'—'),(slaPct!=null?'%':''),slaSub],
     [(cola.length?'bad':'ok'),'Leads sin atender',cola.length,'ahora',mas30+' con más de 30 min']
@@ -517,11 +517,11 @@ function renderDash(){
 function renderVentas(VP,perTxt){
   var el=document.getElementById('ventasT');if(!el)return;
   if(!VP){el.innerHTML='<div class="note">Esperando datos del servidor…</div>';return;}
-  document.getElementById('ventasN').textContent=VP.length+(VP.length===1?' venta ':' ventas ')+perTxt;
+  document.getElementById('ventasN').textContent=VP.length+(VP.length===1?' venta':' ventas')+' · leads que entraron '+perTxt;
   var hayMonto=VP.some(function(v){return v.monto>0;});
-  el.innerHTML=VP.length?'<table class="t" style="min-width:640px"><thead><tr><th>Cliente</th><th>N° de lead</th><th>Campaña</th><th>Ingresó</th><th>Venta</th><th>Asesor</th>'+(hayMonto?'<th style="text-align:right">Monto</th>':'')+'</tr></thead><tbody>'+VP.map(function(v){
+  el.innerHTML=VP.length?'<table class="t" style="min-width:640px"><thead><tr><th>Cliente</th><th>N° de lead</th><th>Campaña</th><th>Ingresó</th><th>Se vendió</th><th>Asesor</th>'+(hayMonto?'<th style="text-align:right">Monto</th>':'')+'</tr></thead><tbody>'+VP.map(function(v){
     return '<tr><td class="main">'+esc(v.nombre)+'</td><td class="mono"><a href="'+KOMMO_LEAD+encodeURIComponent(v.id)+'" target="_blank" rel="noopener" style="color:var(--accent-dark)">#'+esc(v.id)+'</a></td><td>'+esc(v.campania)+'</td><td class="mono">'+fechaUnix(v.entrada)+'</td><td class="mono">'+fechaUnix(v.venta)+'</td><td>'+esc(v.asesor)+'</td>'+(hayMonto?'<td class="mono" style="text-align:right">'+(v.monto?v.monto.toLocaleString('es-PE'):'—')+'</td>':'')+'</tr>';}).join('')+'</tbody></table>'
-    :'<div class="empty">No hay ventas '+esc(perTxt)+'. Cuando un lead pase a «Venta concretada» aparecerá aquí.</div>';
+    :'<div class="empty">Ningún lead que entró '+esc(perTxt)+' se ha vendido todavía. Cuando un lead pase a «Venta concretada» aparecerá aquí.</div>';
 }
 function renderCitasHoy(){
   var el=document.getElementById('citasHoy');if(!el)return;
